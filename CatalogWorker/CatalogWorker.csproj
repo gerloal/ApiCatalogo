@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-CatalogWorker-ce81ba8e-f273-4a5c-931e-354ef838c9ec</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.6.2" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.7.2" />
+    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.1.2" />
+    <PackageReference Include="AWSSDK.SQS" Version="4.0.1.4" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.8" />
+  </ItemGroup>
+</Project>

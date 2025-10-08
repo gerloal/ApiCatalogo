@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Effect": "Allow", "Action": ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"], "Resource": "*" },
+
+    // PERMISOS SQS (cola principal)
+    { "Effect": "Allow",
+      "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:ChangeMessageVisibility",
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl"
+      ],
+      "Resource": [ "arn:aws:sqs:eu-west-1:340663646958:catalog-jobs" ]
+    }
+
+
+    { "Effect":"Allow","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::catalog-api-dev-upload/*"] }
+  ]
+}

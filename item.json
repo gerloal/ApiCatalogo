@@ -1,0 +1,20 @@
+﻿{
+    "tenant":  {
+                   "S":  "demo"
+               },
+    "createdAt":  {
+                      "S":  "2025-09-22T15:30:04.6644603Z"
+                  },
+    "fileKey":  {
+                    "S":  "tenants/demo/2025/09/22/0d6d866d9a0b41fa8bf5e03b84c1919a_catalog.json"
+                },
+    "pk":  {
+               "S":  "TENANT#demo"
+           },
+    "status":  {
+                   "S":  "QUEUED"
+               },
+    "sk":  {
+               "S":  "JOB#20250922#209b879942ca476ebebde34160e2092d"
+           }
+}

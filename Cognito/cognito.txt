@@ -1,0 +1,13 @@
+issuer = "https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_1HsU1aOu3"
+resource_server_identifier = "api"
+scopes = tolist([
+  "catalog:write",
+  "jobs:read",
+])
+tenant_client_ids = <sensitive>
+tenant_secret_arns = {
+  "acme" = "arn:aws:secretsmanager:eu-west-1:340663646958:secret:catalog-api-dev/cognito/acme-gRvlU1"
+  "demo" = "arn:aws:secretsmanager:eu-west-1:340663646958:secret:catalog-api-dev/cognito/demo-UC04CS"
+}
+token_url = "https://catalog-api-dev-1234.auth.eu-west-1.amazoncognito.com/oauth2/token"
+user_pool_id = "eu-west-1_1HsU1aOu3"

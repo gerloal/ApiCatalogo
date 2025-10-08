@@ -1,0 +1,8 @@
+﻿{
+  "tenantId": "Sportandem",
+  "jobId": "123e4567e89b12d3a456426655440000",
+  "bucket": "catalog-api-dev-upload",
+  "key": "tenants/Sportandem/2025/10/01/test_catalog.json",
+  "operation": "FEED_CATALOG",
+  "contentType": "application/json"
+}
