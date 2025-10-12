@@ -1,0 +1,2 @@
+﻿dotnet lambda package --configuration Release --framework net8.0 --output-package bin/Release/process-file.zip
+aws lambda update-function-code --function-name ProcessFileOnQueue --zip-file fileb://bin/Release/process-file.zip --region eu-west-1

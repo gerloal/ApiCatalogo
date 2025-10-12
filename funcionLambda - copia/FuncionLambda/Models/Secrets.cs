@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace FuncionLambda
+namespace FuncionLambda.Models
 {
     public class SpApiSecret
     {
@@ -17,7 +15,8 @@ namespace FuncionLambda
         public string? MarketPlaceID { get; set; }
         public string? TenantId { get; set; }
         public string? SellerId { get; set; }
-        public string? ClientEmail { get; set; }
-        public string? ClientPartnerEmail { get; set; }
-        };
+    };
+
+
+    
 }

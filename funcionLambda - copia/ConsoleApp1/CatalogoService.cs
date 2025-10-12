@@ -8,7 +8,6 @@ using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using Amazon.SQS;
 using FikaAmazonAPI;
-using FikaAmazonAPI.AmazonSpApiSDK.Models.Feeds;
 using FikaAmazonAPI.AmazonSpApiSDK.Models.ProductPricing;
 using FikaAmazonAPI.AmazonSpApiSDK.Models.Sellers;
 using System;
@@ -219,11 +218,6 @@ namespace FuncionLambda
 
         public static async Task ProcessClientOperation(string operation, string tenantId, IAmazonS3 s3, string bucket, string key, string env, string project, ILambdaContext ctx)
         {
-            string feedIDStocks = string.Empty;
-            string feedIDPrices = string.Empty;
-            string reportResultStocks = string.Empty;
-            string reportResultPrices = string.Empty;
-
             try
             {
                 ctx.Logger.LogLine($"Procesando mensaje");
@@ -254,32 +248,21 @@ namespace FuncionLambda
                     
                     AmazonServices amazonServices = new AmazonServices(amazonConnection, ctx);
 
-                    /**************************************************************************************/
-                    /**** PRICING ****/
-
-                    feedIDPrices = await amazonServices.SubmitFeedPRICING_JSONAsync(items);
-
-                    await amazonServices.GetJsonFeedDetails(amazonConnection, feedIDPrices, tenantId, secret.ClientEmail, secret.ClientPartnerEmail, "Precios");
+                    await amazonServices.SubmitFeedPRICING_JSONAsync(items);
 
                     ctx.Logger.LogLine($"Completed: {operation} - PRICING - {tenantId}");
-            
 
-                    /**************************************************************************************/
-                    /**** STOCKS ****/
-
-                    feedIDStocks = await amazonServices.SubmitInventoryJSON_Async(items);
-
-                    await amazonServices.GetJsonFeedDetails(amazonConnection, feedIDStocks, tenantId, secret.ClientEmail, secret.ClientPartnerEmail, "Stocks");
+                    await amazonServices.SubmitInventoryJSON_Async(items);
 
                     ctx.Logger.LogLine($"Completed: {operation} - STOCK UPDATE - {tenantId}");
 
-                    /**************************************************************************************/
-
+                    
                 }
             }
-            catch (Exception x)
+            catch (Exception)
             {
-                ctx.Logger.LogLine($"ProcessClientOperation ERROR: {x.Message}");
+                // Si ya estaba PROCESSING o DONE, dejamos continuar o abortamos según tu política
+                // Aquí simplemente continuamos.
             }
 
         }

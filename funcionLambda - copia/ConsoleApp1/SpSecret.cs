@@ -17,7 +17,5 @@ namespace FuncionLambda
         public string? MarketPlaceID { get; set; }
         public string? TenantId { get; set; }
         public string? SellerId { get; set; }
-        public string? ClientEmail { get; set; }
-        public string? ClientPartnerEmail { get; set; }
-        };
+    };
 }

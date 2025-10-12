@@ -1,14 +1,11 @@
 ﻿using Amazon.Lambda.Core;
-using Amazon.SimpleEmailV2.Model;
 using FikaAmazonAPI;
 using FikaAmazonAPI.AmazonSpApiSDK.Models.Feeds;
 using FikaAmazonAPI.ConstructFeed;
 using FikaAmazonAPI.ConstructFeed.Messages;
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Linq;
-using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,17 +17,14 @@ namespace FuncionLambda
     {
         AmazonConnection amazonConnection;
         ILambdaContext ctx;
-        private const string BLIND_COPY = "german.lopezalmuzara@gmail.com";
         public AmazonServices(AmazonConnection amazonConnection, ILambdaContext ctx)
         {
             this.amazonConnection = amazonConnection;
             this.ctx = ctx;
         }
 
-        public async Task<string> SubmitFeedPRICING_JSONAsync(List<ClientItem> items)
+        public async Task SubmitFeedPRICING_JSONAsync(List<ClientItem> items)
         {
-            string feedID = string.Empty;
-            
             try
             {
                 ConstructJSONFeedService createDocument = new ConstructJSONFeedService(amazonConnection.GetCurrentSellerID);
@@ -85,21 +79,20 @@ namespace FuncionLambda
                 if (markets.Count <= 0)
                     markets.Add("A1RKKUPIHCS9HS");
                 */
-                feedID = await amazonConnection.Feed.SubmitFeedAsync(jsonString, FeedType.JSON_LISTINGS_FEED, null, null, ContentType.JSON);
+                string feedID = await amazonConnection.Feed.SubmitFeedAsync(jsonString, FeedType.JSON_LISTINGS_FEED, null, null, ContentType.JSON);
 
-                return feedID;
+
+                await GetJsonFeedDetails(amazonConnection, feedID);
             }
             catch (Exception ex)
             {
                 ctx.Logger.LogLine($"Error submitting pricing feed: {ex.Message}");
-                return feedID;
+                throw;
 
             }
         }
-        public async Task<string> SubmitInventoryJSON_Async(List<ClientItem> items)
+        public async Task SubmitInventoryJSON_Async(List<ClientItem> items)
         {
-            string feedID = string.Empty;
-
             try
             {
                 ConstructJSONFeedService createDocument = new ConstructJSONFeedService(amazonConnection.GetCurrentSellerID);
@@ -125,79 +118,46 @@ namespace FuncionLambda
 
                 ctx.Logger.LogLine($"Submitted stock feed: {jsonString}");
 
-                feedID = await amazonConnection.Feed.SubmitFeedAsync(jsonString, FeedType.JSON_LISTINGS_FEED, null, null, ContentType.JSON);
+                string feedID = await amazonConnection.Feed.SubmitFeedAsync(jsonString, FeedType.JSON_LISTINGS_FEED, null, null, ContentType.JSON);
 
-                return feedID;
+                await GetJsonFeedDetails(amazonConnection, feedID);
             }
             catch (Exception ex)
             {
                 ctx.Logger.LogLine($"Error submitting pricing feed: {ex.Message}");
-                return feedID;
+                throw;
 
             }
         }
-        public async Task GetJsonFeedDetails(AmazonConnection amazonConnection, string feedID, string? tenantId, string? clientEmail, string? ClientPartnerEmail, string? fallbackSubjectSuffix)
+        private async Task GetJsonFeedDetails(AmazonConnection amazonConnection, string feedID)
         {
             string resultFeedDocumentId = string.Empty;
             string reportResult = string.Empty;
 
-
-            try
+            while (string.IsNullOrEmpty(resultFeedDocumentId))
             {
-              
-
-                while (string.IsNullOrEmpty(resultFeedDocumentId))
+                Feed feedOutput = amazonConnection.Feed.GetFeed(feedID);
+                if (feedOutput.ProcessingStatus == Feed.ProcessingStatusEnum.DONE)
                 {
-                    Feed feedOutput = amazonConnection.Feed.GetFeed(feedID);
-                    if (feedOutput.ProcessingStatus == Feed.ProcessingStatusEnum.DONE)
-                    {
-                        FeedDocument output = amazonConnection.Feed.GetFeedDocument(feedOutput.ResultFeedDocumentId);
-                        reportResult = await amazonConnection.Feed.GetJsonFeedDocumentProcessingReportAsync(output);
-                        ctx.Logger.LogLine(reportResult);
-                      
-                    }
-
-                    if (!(feedOutput.ProcessingStatus == Feed.ProcessingStatusEnum.INPROGRESS ||
-
-                        feedOutput.ProcessingStatus == Feed.ProcessingStatusEnum.INQUEUE))
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        Thread.Sleep(3000);
-                    }
+                    FeedDocument output = amazonConnection.Feed.GetFeedDocument(feedOutput.ResultFeedDocumentId);
+                    reportResult = await amazonConnection.Feed.GetJsonFeedDocumentProcessingReportAsync(output);
+                    ctx.Logger.LogLine(reportResult);
                 }
 
-                if (!string.IsNullOrEmpty(clientEmail))
+                if (!(feedOutput.ProcessingStatus == Feed.ProcessingStatusEnum.INPROGRESS ||
+
+                    feedOutput.ProcessingStatus == Feed.ProcessingStatusEnum.INQUEUE))
                 {
-
-                    var emailHelper = new FeedProcessEmailHelper(
-                        fromEmailIdentity: ClientPartnerEmail,
-                        awsRegion: "eu-west-1",
-                        configurationSetName: null
-                    );
-
-                    await emailHelper.SendAsync(
-                         toEmail: clientEmail,
-                         tenantId: tenantId,
-                         feedResultJson: reportResult,
-                         fallbackSubjectSuffix: fallbackSubjectSuffix, // o "Precios" según la tarea
-                         replyTo: null,// puede ser otra verificada (o la misma)
-                         reportLink: null, // opcional
-                         blindCopy: BLIND_COPY // opcional
-                   );
-                  
+                    break;
                 }
-               
-
+                else
+                {
+                    Thread.Sleep(3000);
+                }
             }
-            catch (Exception ex)
-            {
-                ctx.Logger.LogLine($"Error producing report: {ex.Message}");
-            }
-            
         }
+
+
 
     }
 }
