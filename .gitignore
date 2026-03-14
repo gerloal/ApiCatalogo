@@ -363,3 +363,15 @@ MigrationBackup/
 FodyWeavers.xsd
 
 Cognito/.terraform/
+
+# Terraform state files (stored in S3)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Archivos con credenciales
+Cognito/Usuarios/Secrets/
+**/Sportandem*.txt
+**/Sportandem*.json
+function.zip
