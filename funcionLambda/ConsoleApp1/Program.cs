@@ -13,12 +13,13 @@ using Microsoft.Extensions.Logging;
 using FikaAmazonAPI.AmazonSpApiSDK.Models.Sellers;
 
 
-[assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
-
-
 namespace FuncionLambda
 {
-    
+    public class Program
+    {
+        public static void Main() { } // punto de entrada vacío
+    }
+
     public class Function
     {
         private readonly IAmazonDynamoDB _ddb;

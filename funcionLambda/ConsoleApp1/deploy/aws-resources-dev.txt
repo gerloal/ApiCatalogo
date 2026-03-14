@@ -1,0 +1,12 @@
+Environment: dev
+Region: eu-west-1
+Account ID: 340663646958
+Created: 01/12/2026 22:16:28
+
+Resources:
+- DynamoDB: OrderExportJobs-dev
+- S3 Bucket: order-exports-340663646958-dev
+- SQS Queue: order-export-queue-dev ()
+- SQS DLQ: order-export-dlq-dev ()
+- IAM Role: OrderExportLambdaRole-dev
+- Role ARN: arn:aws:iam::340663646958:role/OrderExportLambdaRole-dev

@@ -1,0 +1,316 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Order Export API - Lambda Functions
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment name
+  
+  ApiKey:
+    Type: String
+    Default: ""
+    Description: API Key for authentication (optional for dev)
+    NoEcho: true
+
+Globals:
+  Function:
+    Runtime: dotnet8
+    Architectures:
+      - arm64
+    Timeout: 900
+    MemorySize: 512
+    Environment:
+      Variables:
+        DYNAMODB_TABLE: !Ref OrderExportJobsTable
+        AWS_REGION: !Ref AWS::Region
+
+Resources:
+  # DynamoDB Table
+  OrderExportJobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub OrderExportJobs-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # S3 Bucket for exports
+  ExportsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub order-exports-${AWS::AccountId}-${Environment}
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldExports
+            Status: Enabled
+            ExpirationInDays: 7
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # SQS Queue
+  OrderExportQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub order-export-queue-${Environment}
+      VisibilityTimeout: 900
+      MessageRetentionPeriod: 345600  # 4 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt OrderExportDLQ.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Dead Letter Queue
+  OrderExportDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub order-export-dlq-${Environment}
+      MessageRetentionPeriod: 1209600  # 14 days
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Lambda Function: API Handler
+  OrderExportAPI:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub OrderExportAPI-${Environment}
+      Handler: ProcessFileOnQueue::FuncionLambda.LambdaServices::FunctionHandler
+      CodeUri: ./bin/Release/net8.0/linux-arm64/publish/
+      Description: API Handler for Order Export requests
+      Environment:
+        Variables:
+          SQS_QUEUE_URL: !Ref OrderExportQueue
+          API_KEY: !Ref ApiKey
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrderExportJobsTable
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt OrderExportQueue.QueueName
+      Events:
+        CreateExport:
+          Type: Api
+          Properties:
+            Path: /exports/orders
+            Method: POST
+            RestApiId: !Ref OrderExportApi
+        GetJobStatus:
+          Type: Api
+          Properties:
+            Path: /exports/orders/{jobId}
+            Method: GET
+            RestApiId: !Ref OrderExportApi
+
+  # Lambda Function: SQS Worker
+  OrderExportWorker:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub OrderExportWorker-${Environment}
+      Handler: ProcessFileOnQueue::FuncionLambda.OrderExportWorker::FunctionHandler
+      CodeUri: ./bin/Release/net8.0/linux-arm64/publish/
+      Description: Worker that processes order export jobs from SQS
+      Timeout: 900
+      MemorySize: 1024
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref ExportsBucket
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrderExportJobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref ExportsBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*/prod/order-export-*
+        - SQSPollerPolicy:
+            QueueName: !GetAtt OrderExportQueue.QueueName
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt OrderExportQueue.Arn
+            BatchSize: 1
+            Enabled: true
+
+  # API Gateway
+  OrderExportApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub OrderExportAPI-${Environment}
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Api-Key,X-Tenant-Id'"
+        AllowOrigin: "'*'"
+      DefinitionBody:
+        openapi: 3.0.1
+        info:
+          title: Order Export API
+          version: 1.0.0
+        paths:
+          /exports/orders:
+            post:
+              summary: Create export job
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      required:
+                        - tenantId
+                        - startDate
+                        - endDate
+                      properties:
+                        tenantId:
+                          type: string
+                        startDate:
+                          type: string
+                          format: date-time
+                        endDate:
+                          type: string
+                          format: date-time
+                        format:
+                          type: string
+                          default: CSV
+              responses:
+                '202':
+                  description: Export job created
+                '400':
+                  description: Bad request
+                '401':
+                  description: Unauthorized
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OrderExportAPI.Arn}/invocations
+          /exports/orders/{jobId}:
+            get:
+              summary: Get job status
+              parameters:
+                - name: jobId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: tenantId
+                  in: query
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: Job status
+                '404':
+                  description: Job not found
+                '401':
+                  description: Unauthorized
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OrderExportAPI.Arn}/invocations
+
+  # CloudWatch Alarms
+  OrderExportAPIErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub OrderExportAPI-Errors-${Environment}
+      AlarmDescription: Alert when API has too many errors
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref OrderExportAPI
+
+  OrderExportWorkerErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub OrderExportWorker-Errors-${Environment}
+      AlarmDescription: Alert when worker has too many errors
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref OrderExportWorker
+
+  DLQMessagesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub OrderExport-DLQ-Messages-${Environment}
+      AlarmDescription: Alert when messages appear in DLQ
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt OrderExportDLQ.QueueName
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${OrderExportApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+    Export:
+      Name: !Sub OrderExportAPI-Endpoint-${Environment}
+
+  QueueUrl:
+    Description: SQS Queue URL
+    Value: !Ref OrderExportQueue
+    Export:
+      Name: !Sub OrderExportQueue-URL-${Environment}
+
+  TableName:
+    Description: DynamoDB Table Name
+    Value: !Ref OrderExportJobsTable
+    Export:
+      Name: !Sub OrderExportJobsTable-Name-${Environment}
+
+  BucketName:
+    Description: S3 Bucket Name
+    Value: !Ref ExportsBucket
+    Export:
+      Name: !Sub OrderExportsBucket-Name-${Environment}

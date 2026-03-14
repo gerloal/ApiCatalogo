@@ -24,7 +24,9 @@ namespace FuncionLambda
 
                 // Nombre del secreto según cómo lo definimos en Terraform:
                 // /<project>/<env>/tenants/<tenantId>/spapi
-                string secretName = $"/{projectName}/{env}/tenants/{tenantId}/spapi";
+                string secretName = $"/catalog-api/{env}/tenants/{tenantId}/spapi";
+
+                ctx.Logger.LogLine($"Secret Query: {secretName}");
 
                 var response = await _secretsManager.GetSecretValueAsync(
                     new GetSecretValueRequest { SecretId = secretName });
@@ -35,6 +37,35 @@ namespace FuncionLambda
 
                 ctx.Logger.LogLine($"ClientId: {secret.ClientId ?? ""}");
                 ctx.Logger.LogLine($"RoleArn: {secret.RoleArn ?? ""}");
+
+                return secret;
+            }
+            catch (SocketException ex)
+            {
+                ctx.Logger.LogLine($"SocketException: {ex.Message}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                ctx.Logger.LogLine($"Exception: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<MiraviaSecret?> GetMiraviaSecretAsync(string tenantId, string env, string projectName, ILambdaContext ctx)
+        {
+            try
+            {
+                string secretName = $"/catalog-api/{env}/tenants/{tenantId}/miravia";
+
+                ctx.Logger.LogLine($"Miravia Secret Query: {secretName}");
+
+                var response = await _secretsManager.GetSecretValueAsync(
+                    new GetSecretValueRequest { SecretId = secretName });
+
+                var secret = JsonSerializer.Deserialize<MiraviaSecret>(response.SecretString);
+
+                ctx.Logger.LogLine($"Miravia AppKey: {secret?.AppKey ?? ""}");
 
                 return secret;
             }

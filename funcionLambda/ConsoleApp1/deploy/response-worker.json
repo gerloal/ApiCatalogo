@@ -1,0 +1,39 @@
+{
+  "errorType": "AmazonSecretsManagerException",
+  "errorMessage": "User: arn:aws:sts::340663646958:assumed-role/OrderExportLambdaRole-dev/OrderExportWorker-dev is not authorized to perform: secretsmanager:GetSecretValue on resource: /order-export/prod/tenants/Sportandem/spapi because no identity-based policy allows the secretsmanager:GetSecretValue action",
+  "stackTrace": [
+    "at Amazon.Runtime.Internal.HttpErrorResponseExceptionHandler.HandleExceptionStream(IRequestContext requestContext, IWebResponseData httpErrorResponse, HttpErrorResponseException exception, Stream responseStream)",
+    "at Amazon.Runtime.Internal.HttpErrorResponseExceptionHandler.HandleExceptionAsync(IExecutionContext executionContext, HttpErrorResponseException exception)",
+    "at Amazon.Runtime.Internal.ExceptionHandler`1.HandleAsync(IExecutionContext executionContext, Exception exception)",
+    "at Amazon.Runtime.Internal.ErrorHandler.ProcessExceptionAsync(IExecutionContext executionContext, Exception exception)",
+    "at Amazon.Runtime.Internal.ErrorHandler.InvokeAsync[T](IExecutionContext executionContext)",
+    "at Amazon.Runtime.Internal.CallbackHandler.InvokeAsync[T](IExecutionContext executionContext)",
+    "at Amazon.Runtime.Internal.Signer.InvokeAsync[T](IExecutionContext executionContext)",
+    "at Amazon.Runtime.Internal.EndpointDiscoveryHandler.InvokeAsync[T](IExecutionContext executionContext)",
+    "at Amazon.Runtime.Internal.EndpointDiscoveryHandler.InvokeAsync[T](IExecutionContext executionContext)",
+    "at Amazon.Runtime.Internal.RetryHandler.InvokeAsync[T](IExecutionContext executionContext)",
+    "at Amazon.Runtime.Internal.RetryHandler.InvokeAsync[T](IExecutionContext executionContext)",
+    "at Amazon.Runtime.Internal.CallbackHandler.InvokeAsync[T](IExecutionContext executionContext)",
+    "at Amazon.Runtime.Internal.BaseAuthResolverHandler.InvokeAsync[T](IExecutionContext executionContext)",
+    "at Amazon.Runtime.Internal.CallbackHandler.InvokeAsync[T](IExecutionContext executionContext)",
+    "at Amazon.Runtime.Internal.ErrorCallbackHandler.InvokeAsync[T](IExecutionContext executionContext)",
+    "at Amazon.Runtime.Internal.MetricsHandler.InvokeAsync[T](IExecutionContext executionContext)",
+    "at FuncionLambda.SecretManagerService.GetSpApiSecretAsync(String tenantId, String env, String projectName, ILambdaContext ctx) in C:\\Users\\germa\\source\\repos\\ApiCatalogo\\funcionLambda\\ConsoleApp1\\SecretManagerService.cs:line 29",
+    "at FuncionLambda.OrderExportWorker.ProcessMessageAsync(SQSMessage message, ILambdaContext context) in C:\\Users\\germa\\source\\repos\\ApiCatalogo\\funcionLambda\\ConsoleApp1\\OrderExportWorker.cs:line 98",
+    "at FuncionLambda.OrderExportWorker.FunctionHandler(SQSEvent sqsEvent, ILambdaContext context) in C:\\Users\\germa\\source\\repos\\ApiCatalogo\\funcionLambda\\ConsoleApp1\\OrderExportWorker.cs:line 56",
+    "at lambda_method1(Closure, Stream, ILambdaContext, Stream)",
+    "at Amazon.Lambda.RuntimeSupport.HandlerWrapper.<>c__DisplayClass8_0.<GetHandlerWrapper>b__0(InvocationRequest invocation) in /src/Repo/Libraries/src/Amazon.Lambda.RuntimeSupport/Bootstrap/HandlerWrapper.cs:line 68",
+    "at Amazon.Lambda.RuntimeSupport.LambdaBootstrap.<>c__DisplayClass26_0.<<InvokeOnceAsync>b__0>d.MoveNext() in /src/Repo/Libraries/src/Amazon.Lambda.RuntimeSupport/Bootstrap/LambdaBootstrap.cs:line 357"
+  ],
+  "cause":   {
+    "errorType": "HttpErrorResponseException",
+    "errorMessage": "Exception of type 'Amazon.Runtime.Internal.HttpErrorResponseException' was thrown.",
+    "stackTrace": [
+      "at Amazon.Runtime.HttpWebRequestMessage.ProcessHttpResponseMessage(HttpResponseMessage responseMessage)",
+      "at Amazon.Runtime.HttpWebRequestMessage.GetResponseAsync(CancellationToken cancellationToken)",
+      "at Amazon.Runtime.Internal.HttpHandler`1.InvokeAsync[T](IExecutionContext executionContext)",
+      "at Amazon.Runtime.Internal.Unmarshaller.InvokeAsync[T](IExecutionContext executionContext)",
+      "at Amazon.Runtime.Internal.ErrorHandler.InvokeAsync[T](IExecutionContext executionContext)"
+    ]
+  }
+}

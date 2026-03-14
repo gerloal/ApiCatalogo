@@ -11,6 +11,7 @@ using FikaAmazonAPI;
 using FikaAmazonAPI.AmazonSpApiSDK.Models.Feeds;
 using FikaAmazonAPI.AmazonSpApiSDK.Models.ProductPricing;
 using FikaAmazonAPI.AmazonSpApiSDK.Models.Sellers;
+using FuncionLambda.Services;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -25,6 +26,9 @@ namespace FuncionLambda
     public class CatalogoService
     {
         private const string FEED_CATALOG = "FEED_CATALOG";
+        private const string EXPORT_ORDERS = "EXPORT_ORDERS";
+        private const string MIRAVIA_FEED_CATALOG = "MIRAVIA_FEED_CATALOG";
+        private const string MIRAVIA_EXPORT_ORDERS = "MIRAVIA_EXPORT_ORDERS";
 
         public static async Task DownloadAsync(IAmazonS3 s3, string bucket, string key, string path)
         {
@@ -190,24 +194,23 @@ namespace FuncionLambda
                 {
                     TableName = table,
                     Key = new Dictionary<string, AttributeValue>
-                {
-                    { "jobId", new AttributeValue { S = jobId } }
-                },
+                    {
+                        { "jobId", new AttributeValue { S = jobId } }
+                    },
                     UpdateExpression = "SET #s = :s, lastMessage = :m, updatedAt = :now",
                     ExpressionAttributeNames = new Dictionary<string, string>
-                {
-                    { "#s", "status" }
-                },
+                    {
+                        { "#s", "status" }
+                    },
                     ExpressionAttributeValues = new Dictionary<string, AttributeValue>
-                {
-                    { ":s",   new AttributeValue { S = status } },
-                    { ":m",   new AttributeValue { S = msg?.Substring(0, Math.Min(500, msg.Length)) ?? string.Empty } },
-                    { ":now", new AttributeValue { S = DateTime.UtcNow.ToString("o") } }
-                }
+                    {
+                        { ":s",   new AttributeValue { S = status } },
+                        { ":m",   new AttributeValue { S = msg?.Substring(0, Math.Min(500, msg.Length)) ?? string.Empty } },
+                        { ":now", new AttributeValue { S = DateTime.UtcNow.ToString("o") } }
+                    }
                 };
 
                 await ddb.UpdateItemAsync(req);
-        
             }
             catch (Exception)
             {
@@ -276,6 +279,18 @@ namespace FuncionLambda
                     /**************************************************************************************/
 
                 }
+                else if (operation.Equals(EXPORT_ORDERS, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ProcessOrdersExportAsync(tenantId, s3, bucket, key, env, project, ctx);
+                }
+                else if (operation.Equals(MIRAVIA_FEED_CATALOG, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ProcessMiraviaFeedCatalogAsync(tenantId, s3, bucket, key, env, project, ctx);
+                }
+                else if (operation.Equals(MIRAVIA_EXPORT_ORDERS, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ProcessMiraviaExportOrdersAsync(tenantId, s3, bucket, key, env, project, ctx);
+                }
             }
             catch (Exception x)
             {
@@ -284,6 +299,150 @@ namespace FuncionLambda
 
         }
 
+
+        public static async Task ProcessOrdersExportAsync(
+            string tenantId,
+            IAmazonS3 s3,
+            string bucket,
+            string key,
+            string env,
+            string project,
+            ILambdaContext ctx)
+        {
+            try
+            {
+                ctx.Logger.LogLine($"Iniciando exportación de pedidos para {tenantId}");
+
+                SecretManagerService secretManagerService = new SecretManagerService(new Amazon.SecretsManager.AmazonSecretsManagerClient());
+                SpApiSecret secret = await secretManagerService.GetSpApiSecretAsync(tenantId, env, project, ctx);
+
+                AmazonConnection amazonConnection = new AmazonConnection(new AmazonCredential()
+                {
+                    ClientId = secret.ClientId,
+                    ClientSecret = secret.ClientSecret,
+                    RefreshToken = secret.RefreshToken,
+                    MarketPlaceID = secret.MarketPlaceID,
+                    RoleArn = secret.RoleArn,
+                    SellerID = secret.SellerId,
+                    IsDebugMode = true
+                }, null);
+
+                DateTime endDate = DateTime.UtcNow;
+                DateTime startDate = endDate.AddDays(-30);
+
+                string jobId = Guid.NewGuid().ToString();
+
+                OrderExportService orderExportService = new OrderExportService(ctx);
+
+                var ddbClient = new AmazonDynamoDBClient(RegionEndpoint.EUWest1);
+                string tableName = "catalog-api-dev-jobs";
+
+                await MarkAsNewJobReceived(ddbClient, tableName, tenantId, jobId, bucket, key, EXPORT_ORDERS);
+                await MarkJobProcessingAsync(ddbClient, tableName, jobId, tenantId, "PROCESSING");
+
+                var result = await orderExportService.ExportOrdersAsync(
+                    amazonConnection,
+                    tenantId,
+                    jobId,
+                    startDate,
+                    endDate,
+                    bucket,
+                    s3,
+                    ddbClient,
+                    tableName);
+
+                ctx.Logger.LogLine($"Exportación completada: {result.TotalOrders} pedidos, {result.TotalLines} líneas");
+                ctx.Logger.LogLine($"URL Cabeceras: {result.HeadersPresignedUrl}");
+                ctx.Logger.LogLine($"URL Líneas: {result.LinesPresignedUrl}");
+            }
+            catch (Exception ex)
+            {
+                ctx.Logger.LogLine($"Error en ProcessOrdersExportAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+        public static async Task ProcessMiraviaFeedCatalogAsync(
+            string tenantId,
+            IAmazonS3 s3,
+            string bucket,
+            string key,
+            string env,
+            string project,
+            ILambdaContext ctx)
+        {
+            try
+            {
+                ctx.Logger.LogLine($"[Miravia] Iniciando FEED_CATALOG para {tenantId}");
+
+                var secretManagerService = new SecretManagerService(new Amazon.SecretsManager.AmazonSecretsManagerClient());
+                var secret = await secretManagerService.GetMiraviaSecretAsync(tenantId, env, project, ctx);
+
+                if (secret == null)
+                    throw new InvalidOperationException($"No se encontraron credenciales Miravia para tenant={tenantId}");
+
+                var items = await TransformCatalogFromToListItems(s3, bucket, key, ctx);
+                ctx.Logger.LogLine($"[Miravia] Items leídos del CSV: {items.Count}");
+
+                var miraviaServices = new MiraviaServices(secret, ctx);
+                var result = await miraviaServices.UpdatePricesAndStockAsync(items);
+
+                ctx.Logger.LogLine($"[Miravia] {result.ToSummary()}");
+
+                if (result.Errors.Count > 0)
+                    ctx.Logger.LogLine($"[Miravia] Errores: {string.Join("; ", result.Errors)}");
+            }
+            catch (Exception ex)
+            {
+                ctx.Logger.LogLine($"[Miravia] ERROR en ProcessMiraviaFeedCatalogAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+        public static async Task ProcessMiraviaExportOrdersAsync(
+            string tenantId,
+            IAmazonS3 s3,
+            string bucket,
+            string key,
+            string env,
+            string project,
+            ILambdaContext ctx)
+        {
+            try
+            {
+                ctx.Logger.LogLine($"[Miravia] Iniciando EXPORT_ORDERS para {tenantId}");
+
+                var secretManagerService = new SecretManagerService(new Amazon.SecretsManager.AmazonSecretsManagerClient());
+                var secret = await secretManagerService.GetMiraviaSecretAsync(tenantId, env, project, ctx);
+
+                if (secret == null)
+                    throw new InvalidOperationException($"No se encontraron credenciales Miravia para tenant={tenantId}");
+
+                var jobId = Guid.NewGuid().ToString();
+                var ddbClient = new AmazonDynamoDBClient(RegionEndpoint.EUWest1);
+                string tableName = "catalog-api-dev-jobs";
+
+                await MarkAsNewJobReceived(ddbClient, tableName, tenantId, jobId, bucket, key, MIRAVIA_EXPORT_ORDERS);
+                await MarkJobProcessingAsync(ddbClient, tableName, jobId, tenantId, "PROCESSING");
+
+                var endDate = DateTime.UtcNow;
+                var startDate = endDate.AddDays(-30);
+
+                var miraviaServices = new MiraviaServices(secret, ctx);
+                var result = await miraviaServices.ExportOrdersAsync(
+                    tenantId, jobId, startDate, endDate,
+                    bucket, s3, ddbClient, tableName);
+
+                ctx.Logger.LogLine($"[Miravia] Exportación completada: {result.TotalOrders} pedidos, {result.TotalLines} líneas");
+                ctx.Logger.LogLine($"[Miravia] URL Cabeceras: {result.HeadersPresignedUrl}");
+                ctx.Logger.LogLine($"[Miravia] URL Líneas: {result.LinesPresignedUrl}");
+            }
+            catch (Exception ex)
+            {
+                ctx.Logger.LogLine($"[Miravia] ERROR en ProcessMiraviaExportOrdersAsync: {ex.Message}");
+                throw;
+            }
+        }
 
         static string ExtractJobId(string body)
         {
