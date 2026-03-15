@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Order Export API - Lambda Functions
+Description: MultiMarketplace Lambda Functions (Catalog Feed + Order Export)
 
 Parameters:
   Environment:
@@ -17,6 +17,14 @@ Parameters:
     Description: API Key for authentication (optional for dev)
     NoEcho: true
 
+  AlertEmail:
+    Type: String
+    Default: ""
+    Description: Email address to receive CloudWatch alarm notifications (leave empty to skip)
+
+Conditions:
+  HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+
 Globals:
   Function:
     Runtime: dotnet8
@@ -27,7 +35,6 @@ Globals:
     Environment:
       Variables:
         DYNAMODB_TABLE: !Ref OrderExportJobsTable
-        AWS_REGION: !Ref AWS::Region
 
 Resources:
   # DynamoDB Table
@@ -79,7 +86,7 @@ Resources:
   OrderExportQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Sub order-export-queue-${Environment}
+      QueueName: !Sub order-export-${Environment}
       VisibilityTimeout: 900
       MessageRetentionPeriod: 345600  # 4 days
       RedrivePolicy:
@@ -99,6 +106,25 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  # SNS Topic para alertas
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub multimarketplace-alerts-${Environment}
+      DisplayName: !Sub MultiMarketplace Alerts (${Environment})
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Suscripción email (solo se crea si se proporcionó dirección)
+  AlertsEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlertEmail
+    Properties:
+      TopicArn: !Ref AlertsTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
   # Lambda Function: API Handler
   OrderExportAPI:
     Type: AWS::Serverless::Function
@@ -107,6 +133,7 @@ Resources:
       Handler: ProcessFileOnQueue::FuncionLambda.LambdaServices::FunctionHandler
       CodeUri: ./bin/Release/net8.0/linux-arm64/publish/
       Description: API Handler for Order Export requests
+      Tracing: Active
       Environment:
         Variables:
           SQS_QUEUE_URL: !Ref OrderExportQueue
@@ -116,6 +143,17 @@ Resources:
             TableName: !Ref OrderExportJobsTable
         - SQSSendMessagePolicy:
             QueueName: !GetAtt OrderExportQueue.QueueName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cloudwatch:PutMetricData
+              Resource: "*"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - xray:PutTraceSegments
+                - xray:PutTelemetryRecords
+              Resource: "*"
       Events:
         CreateExport:
           Type: Api
@@ -140,6 +178,7 @@ Resources:
       Description: Worker that processes order export jobs from SQS
       Timeout: 900
       MemorySize: 1024
+      Tracing: Active
       Environment:
         Variables:
           S3_BUCKET: !Ref ExportsBucket
@@ -153,6 +192,12 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*/prod/order-export-*
+        - Statement:
+            - Effect: Allow
+              Action:
+                - xray:PutTraceSegments
+                - xray:PutTelemetryRecords
+              Resource: "*"
         - SQSPollerPolicy:
             QueueName: !GetAtt OrderExportQueue.QueueName
       Events:
@@ -246,7 +291,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub OrderExportAPI-Errors-${Environment}
-      AlarmDescription: Alert when API has too many errors
+      AlarmDescription: "La Lambda de API tiene demasiados errores (>10 en 5 min)"
       MetricName: Errors
       Namespace: AWS/Lambda
       Statistic: Sum
@@ -254,6 +299,8 @@ Resources:
       EvaluationPeriods: 1
       Threshold: 10
       ComparisonOperator: GreaterThanThreshold
+      AlarmActions: !If [HasAlertEmail, [!Ref AlertsTopic], []]
+      OKActions:    !If [HasAlertEmail, [!Ref AlertsTopic], []]
       Dimensions:
         - Name: FunctionName
           Value: !Ref OrderExportAPI
@@ -262,7 +309,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub OrderExportWorker-Errors-${Environment}
-      AlarmDescription: Alert when worker has too many errors
+      AlarmDescription: "El worker SQS tiene demasiados errores (>5 en 5 min)"
       MetricName: Errors
       Namespace: AWS/Lambda
       Statistic: Sum
@@ -270,6 +317,8 @@ Resources:
       EvaluationPeriods: 1
       Threshold: 5
       ComparisonOperator: GreaterThanThreshold
+      AlarmActions: !If [HasAlertEmail, [!Ref AlertsTopic], []]
+      OKActions:    !If [HasAlertEmail, [!Ref AlertsTopic], []]
       Dimensions:
         - Name: FunctionName
           Value: !Ref OrderExportWorker
@@ -278,7 +327,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub OrderExport-DLQ-Messages-${Environment}
-      AlarmDescription: Alert when messages appear in DLQ
+      AlarmDescription: "Hay mensajes en la DLQ — jobs fallaron 3 veces consecutivas"
       MetricName: ApproximateNumberOfMessagesVisible
       Namespace: AWS/SQS
       Statistic: Average
@@ -286,9 +335,166 @@ Resources:
       EvaluationPeriods: 1
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions: !If [HasAlertEmail, [!Ref AlertsTopic], []]
+      OKActions:    !If [HasAlertEmail, [!Ref AlertsTopic], []]
       Dimensions:
         - Name: QueueName
           Value: !GetAtt OrderExportDLQ.QueueName
+
+  ExportJobFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub OrderExport-JobFailed-${Environment}
+      AlarmDescription: "Un job de exportación ha fallado"
+      MetricName: ExportJobFailed
+      Namespace: MultiMarketplace/FuncionLambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasAlertEmail, [!Ref AlertsTopic], []]
+      OKActions:    !If [HasAlertEmail, [!Ref AlertsTopic], []]
+
+  ExportDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub OrderExport-Duration-${Environment}
+      AlarmDescription: "Una exportación ha tardado más de 10 minutos"
+      MetricName: ExportDuration
+      Namespace: MultiMarketplace/FuncionLambda
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 600
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasAlertEmail, [!Ref AlertsTopic], []]
+      OKActions:    !If [HasAlertEmail, [!Ref AlertsTopic], []]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # CATALOG FEED WORKER (ProcessFileOnQueue)
+  # Gestiona actualizaciones de precios/stocks para Amazon, Miravia, PcComponentes
+  # Trigger: SQS catalog-jobs  { tenantId, jobId, bucket, key, operation }
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # DynamoDB Table — tracking de jobs del catálogo (nombre legacy sin sufijo de entorno)
+  CatalogJobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub catalog-api-${Environment}-jobs
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # SQS Dead Letter Queue para catalog-jobs
+  CatalogJobsDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub catalog-jobs-dlq-${Environment}
+      MessageRetentionPeriod: 1209600  # 14 days
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # SQS Queue — recibe mensajes de operaciones de catálogo
+  CatalogJobsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub catalog-jobs-${Environment}
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 345600  # 4 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt CatalogJobsDLQ.Arn
+        maxReceiveCount: 5
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Lambda Function: Catalog Feed Worker
+  CatalogWorker:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ProcessFileOnQueue-${Environment}
+      Handler: ProcessFileOnQueue::FuncionLambda.Function::HandlerAsync
+      CodeUri: ./bin/Release/net8.0/linux-arm64/publish/
+      Description: Processes catalog feed jobs (prices/stock updates) for Amazon, Miravia and PcComponentes
+      Timeout: 120
+      MemorySize: 1024
+      Tracing: Active
+      Environment:
+        Variables:
+          JOBS_TABLE: !Ref CatalogJobsTable
+          ENV: !Ref Environment
+          PROJECT_NAME: catalog-api
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CatalogJobsTable
+        - S3ReadPolicy:
+            BucketName: "*"
+        - SQSPollerPolicy:
+            QueueName: !GetAtt CatalogJobsQueue.QueueName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - xray:PutTraceSegments
+                - xray:PutTelemetryRecords
+              Resource: "*"
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt CatalogJobsQueue.Arn
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
+            ScalingConfig:
+              MaximumConcurrency: 5
+            Enabled: true
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+
+  # CloudWatch Alarm — DLQ de catalog-jobs
+  CatalogJobsDLQAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub CatalogJobs-DLQ-Messages-${Environment}
+      AlarmDescription: "Hay mensajes en la DLQ de catalog-jobs — jobs fallaron 5 veces consecutivas"
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasAlertEmail, [!Ref AlertsTopic], []]
+      OKActions:    !If [HasAlertEmail, [!Ref AlertsTopic], []]
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt CatalogJobsDLQ.QueueName
 
 Outputs:
   ApiEndpoint:

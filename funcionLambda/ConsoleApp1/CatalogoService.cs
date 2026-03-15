@@ -345,7 +345,7 @@ namespace FuncionLambda
                 OrderExportService orderExportService = new OrderExportService(ctx);
 
                 var ddbClient = new AmazonDynamoDBClient(RegionEndpoint.EUWest1);
-                string tableName = "catalog-api-dev-jobs";
+                string tableName = Environment.GetEnvironmentVariable("JOBS_TABLE") ?? "catalog-api-dev-jobs";
 
                 await MarkAsNewJobReceived(ddbClient, tableName, tenantId, jobId, bucket, key, EXPORT_ORDERS);
                 await MarkJobProcessingAsync(ddbClient, tableName, jobId, tenantId, "PROCESSING");
@@ -430,7 +430,7 @@ namespace FuncionLambda
 
                 var jobId = Guid.NewGuid().ToString();
                 var ddbClient = new AmazonDynamoDBClient(RegionEndpoint.EUWest1);
-                string tableName = "catalog-api-dev-jobs";
+                string tableName = Environment.GetEnvironmentVariable("JOBS_TABLE") ?? "catalog-api-dev-jobs";
 
                 await MarkAsNewJobReceived(ddbClient, tableName, tenantId, jobId, bucket, key, MIRAVIA_EXPORT_ORDERS);
                 await MarkJobProcessingAsync(ddbClient, tableName, jobId, tenantId, "PROCESSING");
@@ -512,7 +512,7 @@ namespace FuncionLambda
 
                 var jobId     = Guid.NewGuid().ToString();
                 var ddbClient = new AmazonDynamoDBClient(RegionEndpoint.EUWest1);
-                string tableName = "catalog-api-dev-jobs";
+                string tableName = Environment.GetEnvironmentVariable("JOBS_TABLE") ?? "catalog-api-dev-jobs";
 
                 await MarkAsNewJobReceived(ddbClient, tableName, tenantId, jobId, bucket, key, PCCOMPONENTES_EXPORT_ORDERS);
                 await MarkJobProcessingAsync(ddbClient, tableName, jobId, tenantId, "PROCESSING");

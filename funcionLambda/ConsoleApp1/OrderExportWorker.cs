@@ -1,8 +1,11 @@
+using Amazon.CloudWatch;
 using Amazon.DynamoDBv2;
 using Amazon.Lambda.Core;
 using Amazon.Lambda.SQSEvents;
 using Amazon.S3;
 using Amazon.SecretsManager;
+using Amazon.XRay.Recorder.Core;
+using Amazon.XRay.Recorder.Handlers.AwsSdk;
 using FikaAmazonAPI;
 using FikaAmazonAPI.Parameter;
 using FuncionLambda.Models;
@@ -21,26 +24,30 @@ namespace FuncionLambda
         private readonly IAmazonSecretsManager _secretsManager;
         private readonly string _tableName;
         private readonly string _bucket;
+        private readonly CloudWatchMetricsService _metrics;
 
         public OrderExportWorker()
         {
+            AWSSDKHandler.RegisterXRayForAllServices();
             _s3Client = new AmazonS3Client();
             _ddbClient = new AmazonDynamoDBClient();
             _secretsManager = new AmazonSecretsManagerClient();
             _tableName = Environment.GetEnvironmentVariable("DYNAMODB_TABLE") ?? "OrderExportJobs";
             _bucket = Environment.GetEnvironmentVariable("S3_BUCKET") ?? throw new Exception("S3_BUCKET environment variable is required");
+            _metrics = new CloudWatchMetricsService(new AmazonCloudWatchClient());
         }
 
         /// <summary>
-        /// Constructor para testing
+        /// Constructor para testing (cloudWatch opcional para no romper tests existentes)
         /// </summary>
-        public OrderExportWorker(IAmazonS3 s3Client, IAmazonDynamoDB ddbClient, IAmazonSecretsManager secretsManager, string tableName, string bucket)
+        public OrderExportWorker(IAmazonS3 s3Client, IAmazonDynamoDB ddbClient, IAmazonSecretsManager secretsManager, string tableName, string bucket, IAmazonCloudWatch cloudWatch = null)
         {
             _s3Client = s3Client;
             _ddbClient = ddbClient;
             _secretsManager = secretsManager;
             _tableName = tableName;
             _bucket = bucket;
+            _metrics = cloudWatch != null ? new CloudWatchMetricsService(cloudWatch) : null;
         }
 
         /// <summary>
@@ -60,7 +67,13 @@ namespace FuncionLambda
                 {
                     context.Logger.LogLine($"Error processing message {record.MessageId}: {ex.Message}");
                     context.Logger.LogLine($"StackTrace: {ex.StackTrace}");
-                    // El mensaje volverá a la cola después del visibility timeout
+
+                    if (_metrics != null)
+                    {
+                        var tenantId = TryExtractTenantId(record.Body);
+                        try { await _metrics.PublishExportJobFailedAsync(tenantId); } catch { /* no bloquear el rethrow */ }
+                    }
+
                     throw;
                 }
             }
@@ -90,6 +103,8 @@ namespace FuncionLambda
 
             context.Logger.LogLine($"Processing export job {queueMessage.JobId} for tenant {queueMessage.TenantId}");
 
+            var jobStartTime = DateTime.UtcNow;
+
             // Actualizar estado a RUNNING
             var exportJobService = new ExportJobService(_ddbClient, null, _tableName, null);
             await exportJobService.UpdateJobStatusToRunningAsync(queueMessage.TenantId, queueMessage.JobId);
@@ -103,7 +118,7 @@ namespace FuncionLambda
                 throw new Exception($"Secrets not found for tenant {queueMessage.TenantId}");
             }
 
-            // Crear conexión Amazon SP-API
+            // Crear conexiï¿½n Amazon SP-API
             var amazonConnection = new AmazonConnection(new AmazonCredential
             {
                 ClientId = spApiSecret.ClientId,
@@ -126,7 +141,7 @@ namespace FuncionLambda
                 endDate = latestAllowedEndDate;
             }
 
-            // Ejecutar exportación
+            // Ejecutar exportaciï¿½n
             var orderExportService = new OrderExportService(context);
             var result = await orderExportService.ExportOrdersAsync(
                 amazonConnection,
@@ -141,6 +156,22 @@ namespace FuncionLambda
             );
 
             context.Logger.LogLine($"Export completed for job {queueMessage.JobId}: Status={result.Status}, Orders={result.TotalOrders}, Lines={result.TotalLines}");
+
+            if (_metrics != null)
+            {
+                var duration = (DateTime.UtcNow - jobStartTime).TotalSeconds;
+                try { await _metrics.PublishOrdersExportedAsync(queueMessage.TenantId, "Amazon", result.TotalOrders, result.TotalLines, duration); } catch { /* no bloquear el flujo principal */ }
+            }
+        }
+
+        private static string TryExtractTenantId(string messageBody)
+        {
+            try
+            {
+                var msg = JsonSerializer.Deserialize<ExportOrdersQueueMessage>(messageBody);
+                return msg?.TenantId ?? "unknown";
+            }
+            catch { return "unknown"; }
         }
     }
 }

@@ -1,7 +1,10 @@
+using Amazon.CloudWatch;
 using Amazon.DynamoDBv2;
 using Amazon.Lambda.Core;
 using Amazon.Lambda.APIGatewayEvents;
 using Amazon.SQS;
+using Amazon.XRay.Recorder.Core;
+using Amazon.XRay.Recorder.Handlers.AwsSdk;
 using FuncionLambda.Models;
 using FuncionLambda.Services;
 using System;
@@ -17,24 +20,28 @@ namespace FuncionLambda
         private readonly IAmazonSQS _sqsClient;
         private readonly string _tableName;
         private readonly string _queueUrl;
+        private readonly CloudWatchMetricsService _metrics;
 
         public LambdaServices()
         {
+            AWSSDKHandler.RegisterXRayForAllServices();
             _ddbClient = new AmazonDynamoDBClient();
             _sqsClient = new AmazonSQSClient();
             _tableName = Environment.GetEnvironmentVariable("DYNAMODB_TABLE") ?? "OrderExportJobs";
             _queueUrl = Environment.GetEnvironmentVariable("SQS_QUEUE_URL") ?? throw new Exception("SQS_QUEUE_URL environment variable is required");
+            _metrics = new CloudWatchMetricsService(new AmazonCloudWatchClient());
         }
 
         /// <summary>
-        /// Constructor para testing
+        /// Constructor para testing (cloudWatch opcional para no romper tests existentes)
         /// </summary>
-        public LambdaServices(IAmazonDynamoDB ddbClient, IAmazonSQS sqsClient, string tableName, string queueUrl)
+        public LambdaServices(IAmazonDynamoDB ddbClient, IAmazonSQS sqsClient, string tableName, string queueUrl, IAmazonCloudWatch cloudWatch = null)
         {
             _ddbClient = ddbClient;
             _sqsClient = sqsClient;
             _tableName = tableName;
             _queueUrl = queueUrl;
+            _metrics = cloudWatch != null ? new CloudWatchMetricsService(cloudWatch) : null;
         }
 
         /// <summary>
@@ -48,7 +55,7 @@ namespace FuncionLambda
 
                 var service = new ExportJobService(_ddbClient, _sqsClient, _tableName, _queueUrl);
 
-                // Routing basado en método y path
+                // Routing basado en mï¿½todo y path
                 if (request.HttpMethod == "POST" && request.Path == "/exports/orders")
                 {
                     return await HandleCreateExportAsync(request, context, service);
@@ -89,7 +96,7 @@ namespace FuncionLambda
             ILambdaContext context,
             ExportJobService service)
         {
-            // Validar autenticación (puedes implementar validación de token aquí)
+            // Validar autenticaciï¿½n (puedes implementar validaciï¿½n de token aquï¿½)
             if (!ValidateAuth(request, context))
             {
                 return new APIGatewayProxyResponse
@@ -138,6 +145,9 @@ namespace FuncionLambda
 
             context.Logger.LogLine($"Export job created: {jobId} for tenant: {exportRequest.TenantId}");
 
+            if (_metrics != null)
+                try { await _metrics.PublishExportJobCreatedAsync(exportRequest.TenantId); } catch { /* no bloquear el flujo principal */ }
+
             var response = new ExportOrdersResponse
             {
                 JobId = jobId,
@@ -161,7 +171,7 @@ namespace FuncionLambda
             ILambdaContext context,
             ExportJobService service)
         {
-            // Validar autenticación
+            // Validar autenticaciï¿½n
             if (!ValidateAuth(request, context))
             {
                 return new APIGatewayProxyResponse
@@ -230,11 +240,11 @@ namespace FuncionLambda
         }
 
         /// <summary>
-        /// Valida autenticación básica (puedes mejorar esto con JWT, API Key, etc.)
+        /// Valida autenticaciï¿½n bï¿½sica (puedes mejorar esto con JWT, API Key, etc.)
         /// </summary>
         private bool ValidateAuth(APIGatewayProxyRequest request, ILambdaContext context)
         {
-            // Ejemplo básico: validar API Key en headers
+            // Ejemplo bï¿½sico: validar API Key en headers
             if (request.Headers != null && request.Headers.ContainsKey("X-Api-Key"))
             {
                 var apiKey = request.Headers["X-Api-Key"];
@@ -258,7 +268,7 @@ namespace FuncionLambda
         }
 
         /// <summary>
-        /// Valida la petición de exportación
+        /// Valida la peticiï¿½n de exportaciï¿½n
         /// </summary>
         private string ValidateExportRequest(ExportOrdersRequest request)
         {
@@ -287,7 +297,7 @@ namespace FuncionLambda
                 return "StartDate must be before EndDate";
             }
 
-            // Validar que el rango no sea mayor a 30 días
+            // Validar que el rango no sea mayor a 30 dï¿½as
             if ((request.EndDate - request.StartDate).TotalDays > 30)
             {
                 return "Date range cannot exceed 30 days";
