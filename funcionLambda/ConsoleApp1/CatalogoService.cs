@@ -29,6 +29,8 @@ namespace FuncionLambda
         private const string EXPORT_ORDERS = "EXPORT_ORDERS";
         private const string MIRAVIA_FEED_CATALOG = "MIRAVIA_FEED_CATALOG";
         private const string MIRAVIA_EXPORT_ORDERS = "MIRAVIA_EXPORT_ORDERS";
+        private const string PCCOMPONENTES_FEED_CATALOG  = "PCCOMPONENTES_FEED_CATALOG";
+        private const string PCCOMPONENTES_EXPORT_ORDERS = "PCCOMPONENTES_EXPORT_ORDERS";
 
         public static async Task DownloadAsync(IAmazonS3 s3, string bucket, string key, string path)
         {
@@ -291,6 +293,14 @@ namespace FuncionLambda
                 {
                     await ProcessMiraviaExportOrdersAsync(tenantId, s3, bucket, key, env, project, ctx);
                 }
+                else if (operation.Equals(PCCOMPONENTES_FEED_CATALOG, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ProcessPcComponentesFeedCatalogAsync(tenantId, s3, bucket, key, env, project, ctx);
+                }
+                else if (operation.Equals(PCCOMPONENTES_EXPORT_ORDERS, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ProcessPcComponentesExportOrdersAsync(tenantId, s3, bucket, key, env, project, ctx);
+                }
             }
             catch (Exception x)
             {
@@ -440,6 +450,88 @@ namespace FuncionLambda
             catch (Exception ex)
             {
                 ctx.Logger.LogLine($"[Miravia] ERROR en ProcessMiraviaExportOrdersAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+        public static async Task ProcessPcComponentesFeedCatalogAsync(
+            string tenantId,
+            IAmazonS3 s3,
+            string bucket,
+            string key,
+            string env,
+            string project,
+            ILambdaContext ctx)
+        {
+            try
+            {
+                ctx.Logger.LogLine($"[PcComponentes] Iniciando FEED_CATALOG para {tenantId}");
+
+                var secretManagerService = new SecretManagerService(new Amazon.SecretsManager.AmazonSecretsManagerClient());
+                var secret = await secretManagerService.GetPcComponentesSecretAsync(tenantId, env, project, ctx);
+
+                if (secret == null)
+                    throw new InvalidOperationException($"No se encontraron credenciales PcComponentes para tenant={tenantId}");
+
+                var items = await TransformCatalogFromToListItems(s3, bucket, key, ctx);
+                ctx.Logger.LogLine($"[PcComponentes] Items leídos del CSV: {items.Count}");
+
+                var pcSvc  = new FuncionLambda.Services.PcComponentesServices(secret, ctx);
+                var result = await pcSvc.UpdateCatalogAsync(items);
+
+                ctx.Logger.LogLine($"[PcComponentes] {result.ToSummary()}");
+
+                if (result.Errors.Count > 0)
+                    ctx.Logger.LogLine($"[PcComponentes] Errores: {string.Join("; ", result.Errors)}");
+            }
+            catch (Exception ex)
+            {
+                ctx.Logger.LogLine($"[PcComponentes] ERROR en ProcessPcComponentesFeedCatalogAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+        public static async Task ProcessPcComponentesExportOrdersAsync(
+            string tenantId,
+            IAmazonS3 s3,
+            string bucket,
+            string key,
+            string env,
+            string project,
+            ILambdaContext ctx)
+        {
+            try
+            {
+                ctx.Logger.LogLine($"[PcComponentes] Iniciando EXPORT_ORDERS para {tenantId}");
+
+                var secretManagerService = new SecretManagerService(new Amazon.SecretsManager.AmazonSecretsManagerClient());
+                var secret = await secretManagerService.GetPcComponentesSecretAsync(tenantId, env, project, ctx);
+
+                if (secret == null)
+                    throw new InvalidOperationException($"No se encontraron credenciales PcComponentes para tenant={tenantId}");
+
+                var jobId     = Guid.NewGuid().ToString();
+                var ddbClient = new AmazonDynamoDBClient(RegionEndpoint.EUWest1);
+                string tableName = "catalog-api-dev-jobs";
+
+                await MarkAsNewJobReceived(ddbClient, tableName, tenantId, jobId, bucket, key, PCCOMPONENTES_EXPORT_ORDERS);
+                await MarkJobProcessingAsync(ddbClient, tableName, jobId, tenantId, "PROCESSING");
+
+                var endDate   = DateTime.UtcNow;
+                var startDate = endDate.AddDays(-30);
+
+                var pcSvc  = new FuncionLambda.Services.PcComponentesServices(secret, ctx);
+                var result = await pcSvc.ExportOrdersAsync(
+                    tenantId, jobId, startDate, endDate,
+                    bucket, s3, ddbClient, tableName);
+
+                ctx.Logger.LogLine($"[PcComponentes] Exportación completada: {result.TotalOrders} pedidos, {result.TotalLines} líneas");
+                ctx.Logger.LogLine($"[PcComponentes] URL Cabeceras: {result.HeadersPresignedUrl}");
+                ctx.Logger.LogLine($"[PcComponentes] URL Líneas: {result.LinesPresignedUrl}");
+            }
+            catch (Exception ex)
+            {
+                ctx.Logger.LogLine($"[PcComponentes] ERROR en ProcessPcComponentesExportOrdersAsync: {ex.Message}");
                 throw;
             }
         }

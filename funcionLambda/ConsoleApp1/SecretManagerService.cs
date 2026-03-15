@@ -81,6 +81,35 @@ namespace FuncionLambda
             }
         }
 
+        public async Task<PcComponentesSecret?> GetPcComponentesSecretAsync(string tenantId, string env, string projectName, ILambdaContext ctx)
+        {
+            try
+            {
+                string secretName = $"/catalog-api/{env}/tenants/{tenantId}/pccomponentes";
+
+                ctx.Logger.LogLine($"PcComponentes Secret Query: {secretName}");
+
+                var response = await _secretsManager.GetSecretValueAsync(
+                    new GetSecretValueRequest { SecretId = secretName });
+
+                var secret = JsonSerializer.Deserialize<PcComponentesSecret>(response.SecretString);
+
+                ctx.Logger.LogLine($"PcComponentes ApiKey length: {secret?.ApiKey?.Length ?? 0}");
+
+                return secret;
+            }
+            catch (SocketException ex)
+            {
+                ctx.Logger.LogLine($"SocketException: {ex.Message}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                ctx.Logger.LogLine($"Exception: {ex.Message}");
+                throw;
+            }
+        }
+
     }
    
 }

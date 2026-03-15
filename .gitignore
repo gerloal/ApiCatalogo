@@ -375,3 +375,6 @@ Cognito/Usuarios/Secrets/
 **/Sportandem*.txt
 **/Sportandem*.json
 function.zip
+
+# MCP config (contiene tokens)
+.vscode/mcp.json
