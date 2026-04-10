@@ -1,4 +1,4 @@
-﻿using Amazon;
+using Amazon;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using Amazon.Lambda.Core;
@@ -432,6 +432,23 @@ namespace FuncionLambda
 
                 if (result.Errors.Count > 0)
                     ctx.Logger.LogLine($"[Miravia] Errores: {string.Join("; ", result.Errors)}");
+
+                if (!string.IsNullOrWhiteSpace(secret.ClientEmail))
+                {
+                    await MarketplaceEmailHelper.SendGenericResultAsync(
+                        fromEmail  : secret.ClientPartnerEmail,
+                        toEmail    : secret.ClientEmail,
+                        result     : new MarketplaceFeedResult
+                        {
+                            Marketplace = "Miravia",
+                            TenantId    = tenantId,
+                            Status      = result.Errors.Count == 0 ? "DONE" : "DONE_WITH_ERRORS",
+                            Summary     = result.ToSummary(),
+                            Errors      = result.Errors,
+                            ItemErrors  = result.ItemErrors
+                        });
+                    ctx.Logger.LogLine($"[Miravia] Email de resultado enviado a {secret.ClientEmail}");
+                }
             }
             catch (Exception ex)
             {
@@ -514,6 +531,22 @@ namespace FuncionLambda
 
                 if (result.Errors.Count > 0)
                     ctx.Logger.LogLine($"[PcComponentes] Errores: {string.Join("; ", result.Errors)}");
+
+                if (!string.IsNullOrWhiteSpace(secret.ClientEmail))
+                {
+                    await MarketplaceEmailHelper.SendGenericResultAsync(
+                        fromEmail  : secret.ClientPartnerEmail,
+                        toEmail    : secret.ClientEmail,
+                        result     : new MarketplaceFeedResult
+                        {
+                            Marketplace = "PcComponentes",
+                            TenantId    = tenantId,
+                            Status      = result.Errors.Count == 0 ? "DONE" : "DONE_WITH_ERRORS",
+                            Summary     = result.ToSummary(),
+                            Errors      = result.Errors
+                        });
+                    ctx.Logger.LogLine($"[PcComponentes] Email de resultado enviado a {secret.ClientEmail}");
+                }
             }
             catch (Exception ex)
             {
@@ -590,6 +623,22 @@ namespace FuncionLambda
                 ctx.Logger.LogLine($"[AliExpress] {result.ToSummary()}");
                 if (result.Errors.Count > 0)
                     ctx.Logger.LogLine($"[AliExpress] Errores: {string.Join("; ", result.Errors)}");
+
+                if (!string.IsNullOrWhiteSpace(secret.ClientEmail))
+                {
+                    await MarketplaceEmailHelper.SendGenericResultAsync(
+                        fromEmail  : secret.ClientPartnerEmail,
+                        toEmail    : secret.ClientEmail,
+                        result     : new MarketplaceFeedResult
+                        {
+                            Marketplace = "AliExpress",
+                            TenantId    = tenantId,
+                            Status      = result.Errors.Count == 0 ? "DONE" : "DONE_WITH_ERRORS",
+                            Summary     = result.ToSummary(),
+                            Errors      = result.Errors
+                        });
+                    ctx.Logger.LogLine($"[AliExpress] Email de resultado enviado a {secret.ClientEmail}");
+                }
             }
             catch (Exception ex)
             {
@@ -656,6 +705,22 @@ namespace FuncionLambda
                 ctx.Logger.LogLine($"[Decathlon] {result.ToSummary()}");
                 if (result.Errors.Count > 0)
                     ctx.Logger.LogLine($"[Decathlon] Errores: {string.Join("; ", result.Errors)}");
+
+                if (!string.IsNullOrWhiteSpace(secret.ClientEmail))
+                {
+                    await MarketplaceEmailHelper.SendGenericResultAsync(
+                        fromEmail  : secret.ClientPartnerEmail,
+                        toEmail    : secret.ClientEmail,
+                        result     : new MarketplaceFeedResult
+                        {
+                            Marketplace = "Decathlon",
+                            TenantId    = tenantId,
+                            Status      = result.Errors.Count == 0 ? "DONE" : "DONE_WITH_ERRORS",
+                            Summary     = result.ToSummary(),
+                            Errors      = result.Errors
+                        });
+                    ctx.Logger.LogLine($"[Decathlon] Email de resultado enviado a {secret.ClientEmail}");
+                }
             }
             catch (Exception ex)
             {

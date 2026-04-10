@@ -3,6 +3,7 @@ using Amazon.DynamoDBv2.Model;
 using Amazon.Lambda.Core;
 using Amazon.S3;
 using Amazon.S3.Model;
+using FuncionLambda;
 using FuncionLambda.Models;
 using System;
 using System.Collections.Generic;
@@ -78,9 +79,31 @@ namespace FuncionLambda.Services
 
                     if (skuPrices.Count == 0) continue;
 
-                    await _client.PostJsonPayloadAsync(ApiPathPriceUpdate, skuPrices);
+                    var resp = await _client.PostJsonPayloadAsync(ApiPathPriceUpdate, skuPrices);
 
-                    result.PricesUpdated += skuPrices.Count;
+                    // Contar éxitos/errores por SKU según el campo data[] de la respuesta
+                    if (resp?.Items.Count > 0)
+                    {
+                        foreach (var item in resp.Items)
+                        {
+                            if (item.Status == "SUCCESS")
+                                result.PricesUpdated++;
+                            else
+                            {
+                                result.PriceErrors++;
+                                var errDetail = item.Errors.Count > 0
+                                    ? string.Join(", ", item.Errors.Select(e => $"{e.ErrorCode}: {e.Error}"))
+                                    : item.Status;
+                                result.Errors.Add($"Precio SKU {item.SellerSku}: {errDetail}");
+                                result.ItemErrors.Add(new MarketplaceItemError { Sku = item.SellerSku, Operation = "Precio", Reason = errDetail });
+                                _ctx.Logger.LogLine($"[Miravia] Precio ERROR {item.SellerSku}: {errDetail}");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        result.PricesUpdated += skuPrices.Count;
+                    }
                     _ctx.Logger.LogLine($"[Miravia] Precios OK: {skuPrices.Count} SKUs");
                 }
                 catch (MiraviaApiException ex)
@@ -110,9 +133,31 @@ namespace FuncionLambda.Services
 
                     if (skuStocks.Count == 0) continue;
 
-                    await _client.PostJsonPayloadAsync(ApiPathStockUpdate, skuStocks);
+                    var resp = await _client.PostJsonPayloadAsync(ApiPathStockUpdate, skuStocks);
 
-                    result.StocksUpdated += skuStocks.Count;
+                    // Contar éxitos/errores por SKU según el campo data[] de la respuesta
+                    if (resp?.Items.Count > 0)
+                    {
+                        foreach (var item in resp.Items)
+                        {
+                            if (item.Status == "SUCCESS")
+                                result.StocksUpdated++;
+                            else
+                            {
+                                result.StockErrors++;
+                                var errDetail = item.Errors.Count > 0
+                                    ? string.Join(", ", item.Errors.Select(e => $"{e.ErrorCode}: {e.Error}"))
+                                    : item.Status;
+                                result.Errors.Add($"Stock SKU {item.SellerSku}: {errDetail}");
+                                result.ItemErrors.Add(new MarketplaceItemError { Sku = item.SellerSku, Operation = "Stock", Reason = errDetail });
+                                _ctx.Logger.LogLine($"[Miravia] Stock ERROR {item.SellerSku}: {errDetail}");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        result.StocksUpdated += skuStocks.Count;
+                    }
                     _ctx.Logger.LogLine($"[Miravia] Stocks OK: {skuStocks.Count} SKUs");
                 }
                 catch (MiraviaApiException ex)
@@ -357,6 +402,7 @@ namespace FuncionLambda.Services
         public int StocksUpdated { get; set; }
         public int StockErrors { get; set; }
         public List<string> Errors { get; set; } = new();
+        public List<MarketplaceItemError> ItemErrors { get; set; } = new();
 
         public string ToSummary() =>
             $"Miravia Feed: precios actualizados={PricesUpdated} (errores={PriceErrors}), " +

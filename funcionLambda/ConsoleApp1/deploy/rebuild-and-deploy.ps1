@@ -73,16 +73,38 @@ if (Test-Path $dllPath) {
     }
 }
 
-Write-Host "`n3️⃣ Desplegando funciones Lambda..."
+Write-Host "`n3️⃣ Desplegando funciones Lambda (OrderExportAPI + OrderExportWorker)..."
 Set-Location $ScriptDir
 .\deploy-lambdas.ps1 -RoleArn $RoleArn -Environment $Environment -Region $Region
 
 if ($LASTEXITCODE -ne 0) { throw "Error en deploy-lambdas.ps1" }
 
+# El ZIP ya fue creado por deploy-lambdas.ps1; lo reutilizamos
+$PackagePath = Join-Path $ProjectDir "lambda-package.zip"
+if (-not (Test-Path $PackagePath)) {
+    throw "No se encontró el paquete $PackagePath — deploy-lambdas.ps1 debería haberlo creado"
+}
+
+Write-Host "`n3️⃣b Desplegando ProcessFileOnQueue (catalog jobs)..."
+aws lambda update-function-code `
+    --function-name ProcessFileOnQueue `
+    --zip-file "fileb://$PackagePath" `
+    --region $Region `
+    --no-cli-pager | Out-Null
+
+if ($LASTEXITCODE -ne 0) { throw "Error actualizando ProcessFileOnQueue" }
+
+Write-Host "   Esperando a que ProcessFileOnQueue esté lista..."
+aws lambda wait function-updated --function-name ProcessFileOnQueue --region $Region
+if ($LASTEXITCODE -ne 0) { throw "Timeout esperando ProcessFileOnQueue" }
+
+Write-Host "   ✅ ProcessFileOnQueue desplegada"
+
 Write-Host "`n4️⃣ Verificando configuración de handlers..."
 $functions = @{
-    "OrderExportAPI-$Environment" = "ProcessFileOnQueue::FuncionLambda.LambdaServices::FunctionHandler"
+    "OrderExportAPI-$Environment"    = "ProcessFileOnQueue::FuncionLambda.LambdaServices::FunctionHandler"
     "OrderExportWorker-$Environment" = "ProcessFileOnQueue::FuncionLambda.OrderExportWorker::FunctionHandler"
+    "ProcessFileOnQueue"             = "ProcessFileOnQueue::FuncionLambda.CatalogoService::FunctionHandler"
 }
 
 foreach ($func in $functions.GetEnumerator()) {

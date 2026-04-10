@@ -114,7 +114,16 @@ namespace FuncionLambda
                 }
 
                 if (typeof(T) == typeof(MiraviaApiResponse))
-                    return (T)(object)new MiraviaApiResponse { Code = code ?? "0", Raw = json };
+                {
+                    var resp = new MiraviaApiResponse { Code = code ?? "0", Raw = json };
+                    if (root.TryGetProperty("data", out var dataEl) && dataEl.ValueKind == JsonValueKind.Array)
+                    {
+                        var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                        resp.Items = JsonSerializer.Deserialize<List<MiraviaItemResult>>(dataEl.GetRawText(), opts)
+                                     ?? new List<MiraviaItemResult>();
+                    }
+                    return (T)(object)resp;
+                }
 
                 if (root.TryGetProperty("data", out var data))
                     return JsonSerializer.Deserialize<T>(data.GetRawText(),
@@ -136,7 +145,29 @@ namespace FuncionLambda
     public class MiraviaApiResponse
     {
         public string Code { get; set; } = string.Empty;
-        public string Raw { get; set; } = string.Empty;
+        public string Raw  { get; set; } = string.Empty;
+        public List<MiraviaItemResult> Items { get; set; } = new();
+    }
+
+    public class MiraviaItemResult
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("seller_sku")]
+        public string SellerSku { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("errors")]
+        public List<MiraviaItemError> Errors { get; set; } = new();
+    }
+
+    public class MiraviaItemError
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("error_code")]
+        public string ErrorCode { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("error")]
+        public string Error { get; set; } = string.Empty;
     }
 
     public class MiraviaApiException : Exception

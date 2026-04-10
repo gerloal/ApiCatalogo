@@ -208,4 +208,137 @@ Inválidos: {invalid}
         }
     }
 
+    /// <summary>
+    /// Error a nivel de artículo individual en un feed de marketplaces.
+    /// </summary>
+    public class MarketplaceItemError
+    {
+        public string Sku       { get; set; } = string.Empty;
+        public string Operation { get; set; } = string.Empty;  // "Precio", "Stock", etc.
+        public string Reason    { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Datos de resultado para mercados no-Amazon (Mirakl, Miravia, AliExpress…).
+    /// </summary>
+    public class MarketplaceFeedResult
+    {
+        public string Marketplace   { get; set; }
+        public string TenantId      { get; set; }
+        public string Status        { get; set; }   // DONE / DONE_WITH_ERRORS / FAILED
+        public string Summary       { get; set; }   // Texto libre con el resumen (.ToSummary())
+        public List<string> Errors  { get; set; } = new();
+        /// <summary>Errores por artículo concreto (SKU + operación + motivo).</summary>
+        public List<MarketplaceItemError> ItemErrors { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Helper estático para enviar emails de resultado en mercados no-Amazon.
+    /// </summary>
+    public static class MarketplaceEmailHelper
+    {
+        private const string BLIND_COPY = "german.lopezalmuzara@gmail.com";
+
+    /// <summary>
+    /// Envía un email de resultado genérico para mercados no-Amazon (PcComponentes, Miravia, AliExpress, Decathlon).
+    /// No envía nada si <paramref name="toEmail"/> está vacío.
+    /// </summary>
+    public static async Task SendGenericResultAsync(
+        string fromEmail,
+        string toEmail,
+        MarketplaceFeedResult result,
+        string awsRegion = "eu-west-1")
+    {
+        if (string.IsNullOrWhiteSpace(toEmail) || string.IsNullOrWhiteSpace(fromEmail))
+            return;
+
+        var status = result.Status ?? (result.Errors.Count == 0 && result.ItemErrors.Count == 0 ? "DONE" : "DONE_WITH_ERRORS");
+        var subject = $"[{Html(result.TenantId)}] {Html(result.Marketplace)} FeedCatalog – {Html(status)}";
+
+        // ─── Cuerpo texto plano ───────────────────────────────────────
+        var errorsText = result.ItemErrors.Count > 0
+            ? string.Join(Environment.NewLine, result.ItemErrors.Select(e => $"- [{e.Operation}] SKU {e.Sku}: {e.Reason}"))
+            : result.Errors.Count == 0
+                ? "Sin errores."
+                : string.Join(Environment.NewLine, result.Errors.Select(e => $"- {e}"));
+
+        var textBody =
+$@"Marketplace : {result.Marketplace}
+Tenant      : {result.TenantId}
+Estado      : {status}
+Resumen     : {result.Summary}
+
+Errores:
+{errorsText}";
+
+        // ─── Sección HTML de errores ──────────────────────────────────
+        string errorsHtml;
+        if (result.ItemErrors.Count > 0)
+        {
+            var rows = new System.Text.StringBuilder();
+            foreach (var e in result.ItemErrors)
+                rows.Append($"<tr><td style='padding:4px 8px;border:1px solid #ccc'>{Html(e.Sku)}</td>" +
+                            $"<td style='padding:4px 8px;border:1px solid #ccc'>{Html(e.Operation)}</td>" +
+                            $"<td style='padding:4px 8px;border:1px solid #ccc'>{Html(e.Reason)}</td></tr>");
+            errorsHtml =
+                $"<table border='0' cellpadding='0' cellspacing='0' style='border-collapse:collapse;font-size:13px'>" +
+                $"<thead><tr>" +
+                $"<th style='padding:4px 8px;border:1px solid #999;background:#f0f0f0'>SKU</th>" +
+                $"<th style='padding:4px 8px;border:1px solid #999;background:#f0f0f0'>Operación</th>" +
+                $"<th style='padding:4px 8px;border:1px solid #999;background:#f0f0f0'>Motivo</th>" +
+                $"</tr></thead><tbody>{rows}</tbody></table>";
+        }
+        else if (result.Errors.Count > 0)
+        {
+            var li = string.Join("", result.Errors.Select(e => $"<li>{Html(e)}</li>"));
+            errorsHtml = $"<ul style='font-family:monospace;font-size:13px'>{li}</ul>";
+        }
+        else
+        {
+            errorsHtml = "<p style='color:green'>Sin errores.</p>";
+        }
+
+        var htmlBody =
+$@"<html><body>
+  <h3>Resultado FeedCatalog — {Html(result.Marketplace)}</h3>
+  <table border='0' cellpadding='6'>
+    <tr><td><b>Marketplace</b></td><td>{Html(result.Marketplace)}</td></tr>
+    <tr><td><b>Tenant</b></td><td>{Html(result.TenantId)}</td></tr>
+    <tr><td><b>Estado</b></td><td>{Html(status)}</td></tr>
+    <tr><td><b>Resumen</b></td><td>{Html(result.Summary)}</td></tr>
+  </table>
+  <h4>Artículos con error</h4>
+  {errorsHtml}
+</body></html>";
+
+        var ses = new AmazonSimpleEmailServiceV2Client(RegionEndpoint.GetBySystemName(awsRegion));
+        var request = new SendEmailRequest
+        {
+            FromEmailAddress = fromEmail,
+            Destination      = new Destination
+            {
+                ToAddresses  = new List<string> { toEmail },
+                BccAddresses = new List<string> { BLIND_COPY }
+            },
+            Content          = new EmailContent
+            {
+                Simple = new Amazon.SimpleEmailV2.Model.Message
+                {
+                    Subject = new Content { Data = subject },
+                    Body    = new Body
+                    {
+                        Text = new Content { Data = textBody },
+                        Html = new Content { Data = htmlBody }
+                    }
+                }
+            }
+        };
+        await ses.SendEmailAsync(request);
+    }
+
+    private static string Html(string s) =>
+        System.Net.WebUtility.HtmlEncode(s ?? string.Empty);
+
+    } // end MarketplaceEmailHelper
+
 }
