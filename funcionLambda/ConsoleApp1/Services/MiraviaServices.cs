@@ -22,10 +22,12 @@ namespace FuncionLambda.Services
     /// </summary>
     public class MiraviaServices
     {
-        private const string ApiPathPriceUpdate = "/product/price/update";
-        private const string ApiPathStockUpdate = "/product/stock/update";
-        private const string ApiPathOrdersGet = "/orders/get";
-        private const string ApiPathOrderItemsGet = "/order/items/get";
+        private const string ApiPathPriceUpdate = "/v2/product/price/update";
+        private const string ApiPathStockUpdate  = "/v2/product/quantity/update";
+        // Código de almacén de Sportandem en Miravia (obtenido de /rc/warehouse/get)
+        private const string WarehouseCode = "dropshipping";
+        private const string ApiPathOrdersGet = "/v2/orders/get";
+        private const string ApiPathOrderItemsGet = "/v2/order/items/get";
         private const int BatchSize = 20;
         private const int OrdersPageSize = 50;
 
@@ -66,13 +68,17 @@ namespace FuncionLambda.Services
                 {
                     var skuPrices = batch
                         .Where(i => i.Price > 0)
-                        .Select(i => new { SkuId = i.Sku, SalePrice = Math.Round(i.Price, 2) })
+                        .Select(i => new
+                        {
+                            seller_sku = i.Sku,
+                            price      = Math.Round(i.Price, 2).ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
+                            sale_price = Math.Round(i.Price, 2).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)
+                        })
                         .ToList();
 
                     if (skuPrices.Count == 0) continue;
 
-                    var payload = new { skus = skuPrices };
-                    await _client.PostJsonPayloadAsync(ApiPathPriceUpdate, payload);
+                    await _client.PostJsonPayloadAsync(ApiPathPriceUpdate, skuPrices);
 
                     result.PricesUpdated += skuPrices.Count;
                     _ctx.Logger.LogLine($"[Miravia] Precios OK: {skuPrices.Count} SKUs");
@@ -92,13 +98,19 @@ namespace FuncionLambda.Services
                 {
                     var skuStocks = batch
                         .Where(i => i.Stock.HasValue)
-                        .Select(i => new { SkuId = i.Sku, Quantity = i.Stock!.Value })
+                        .Select(i => new
+                        {
+                            seller_sku         = i.Sku,
+                            warehouse_quantity = new[]
+                            {
+                                new { warehouse_code = WarehouseCode, quantity = i.Stock!.Value.ToString() }
+                            }
+                        })
                         .ToList();
 
                     if (skuStocks.Count == 0) continue;
 
-                    var payload = new { skus = skuStocks };
-                    await _client.PostJsonPayloadAsync(ApiPathStockUpdate, payload);
+                    await _client.PostJsonPayloadAsync(ApiPathStockUpdate, skuStocks);
 
                     result.StocksUpdated += skuStocks.Count;
                     _ctx.Logger.LogLine($"[Miravia] Stocks OK: {skuStocks.Count} SKUs");

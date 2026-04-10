@@ -110,6 +110,64 @@ namespace FuncionLambda
             }
         }
 
+        public async Task<DecathlonSecret?> GetDecathlonSecretAsync(string tenantId, string env, string projectName, ILambdaContext ctx)
+        {
+            try
+            {
+                string secretName = $"/catalog-api/{env}/tenants/{tenantId}/decathlon";
+
+                ctx.Logger.LogLine($"Decathlon Secret Query: {secretName}");
+
+                var response = await _secretsManager.GetSecretValueAsync(
+                    new GetSecretValueRequest { SecretId = secretName });
+
+                var secret = JsonSerializer.Deserialize<DecathlonSecret>(response.SecretString);
+
+                ctx.Logger.LogLine($"Decathlon BaseUrl: {secret?.BaseUrl ?? ""}");
+
+                return secret;
+            }
+            catch (SocketException ex)
+            {
+                ctx.Logger.LogLine($"SocketException: {ex.Message}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                ctx.Logger.LogLine($"Exception: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<AliExpressSecret?> GetAliExpressSecretAsync(string tenantId, string env, string projectName, ILambdaContext ctx)
+        {
+            try
+            {
+                string secretName = $"/catalog-api/{env}/tenants/{tenantId}/aliexpress";
+
+                ctx.Logger.LogLine($"AliExpress Secret Query: {secretName}");
+
+                var response = await _secretsManager.GetSecretValueAsync(
+                    new GetSecretValueRequest { SecretId = secretName });
+
+                var secret = JsonSerializer.Deserialize<AliExpressSecret>(response.SecretString);
+
+                ctx.Logger.LogLine($"AliExpress AppKey: {secret?.AppKey ?? ""}");
+
+                return secret;
+            }
+            catch (SocketException ex)
+            {
+                ctx.Logger.LogLine($"SocketException: {ex.Message}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                ctx.Logger.LogLine($"Exception: {ex.Message}");
+                throw;
+            }
+        }
+
     }
    
 }

@@ -1,7 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace FuncionLambda.Models
 {
     public class SpApiSecret
@@ -15,8 +11,20 @@ namespace FuncionLambda.Models
         public string? MarketPlaceID { get; set; }
         public string? TenantId { get; set; }
         public string? SellerId { get; set; }
-    };
+    }
 
+    public class MiraviaSecret
+    {
+        /// <summary>App Key obtenida en Miravia OpenPlatform al crear la app.</summary>
+        public string? AppKey { get; set; }
 
-    
+        /// <summary>App Secret obtenido en Miravia OpenPlatform.</summary>
+        public string? AppSecret { get; set; }
+
+        /// <summary>Access Token del seller (obtenido mediante OAuth).</summary>
+        public string? AccessToken { get; set; }
+
+        /// <summary>Identificador del tenant en nuestro sistema.</summary>
+        public string? TenantId { get; set; }
+    }
 }

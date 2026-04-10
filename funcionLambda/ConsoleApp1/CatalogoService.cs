@@ -31,6 +31,13 @@ namespace FuncionLambda
         private const string MIRAVIA_EXPORT_ORDERS = "MIRAVIA_EXPORT_ORDERS";
         private const string PCCOMPONENTES_FEED_CATALOG  = "PCCOMPONENTES_FEED_CATALOG";
         private const string PCCOMPONENTES_EXPORT_ORDERS = "PCCOMPONENTES_EXPORT_ORDERS";
+        private const string ALIEXPRESS_FEED_CATALOG  = "ALIEXPRESS_FEED_CATALOG";
+        private const string ALIEXPRESS_EXPORT_ORDERS = "ALIEXPRESS_EXPORT_ORDERS";
+        private const string DECATHLON_FEED_CATALOG   = "DECATHLON_FEED_CATALOG";
+        private const string DECATHLON_EXPORT_ORDERS  = "DECATHLON_EXPORT_ORDERS";
+        // Envía a todos los marketplaces configurados para el tenant
+        private const string ALL_FEED_CATALOG  = "ALL_FEED_CATALOG";
+        private const string ALL_EXPORT_ORDERS = "ALL_EXPORT_ORDERS";
 
         public static async Task DownloadAsync(IAmazonS3 s3, string bucket, string key, string path)
         {
@@ -301,6 +308,30 @@ namespace FuncionLambda
                 {
                     await ProcessPcComponentesExportOrdersAsync(tenantId, s3, bucket, key, env, project, ctx);
                 }
+                else if (operation.Equals(ALIEXPRESS_FEED_CATALOG, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ProcessAliExpressFeedCatalogAsync(tenantId, s3, bucket, key, env, project, ctx);
+                }
+                else if (operation.Equals(ALIEXPRESS_EXPORT_ORDERS, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ProcessAliExpressExportOrdersAsync(tenantId, s3, bucket, key, env, project, ctx);
+                }
+                else if (operation.Equals(DECATHLON_FEED_CATALOG, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ProcessDecathlonFeedCatalogAsync(tenantId, s3, bucket, key, env, project, ctx);
+                }
+                else if (operation.Equals(DECATHLON_EXPORT_ORDERS, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ProcessDecathlonExportOrdersAsync(tenantId, s3, bucket, key, env, project, ctx);
+                }
+                else if (operation.Equals(ALL_FEED_CATALOG, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ProcessAllFeedCatalogAsync(tenantId, s3, bucket, key, env, project, ctx);
+                }
+                else if (operation.Equals(ALL_EXPORT_ORDERS, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ProcessAllExportOrdersAsync(tenantId, s3, bucket, key, env, project, ctx);
+                }
             }
             catch (Exception x)
             {
@@ -534,6 +565,189 @@ namespace FuncionLambda
                 ctx.Logger.LogLine($"[PcComponentes] ERROR en ProcessPcComponentesExportOrdersAsync: {ex.Message}");
                 throw;
             }
+        }
+
+        public static async Task ProcessAliExpressFeedCatalogAsync(
+            string tenantId, IAmazonS3 s3, string bucket, string key,
+            string env, string project, ILambdaContext ctx)
+        {
+            try
+            {
+                ctx.Logger.LogLine($"[AliExpress] Iniciando FEED_CATALOG para {tenantId}");
+
+                var secretManagerService = new SecretManagerService(new Amazon.SecretsManager.AmazonSecretsManagerClient());
+                var secret = await secretManagerService.GetAliExpressSecretAsync(tenantId, env, project, ctx);
+
+                if (secret == null)
+                    throw new InvalidOperationException($"No se encontraron credenciales AliExpress para tenant={tenantId}");
+
+                var items = await TransformCatalogFromToListItems(s3, bucket, key, ctx);
+                ctx.Logger.LogLine($"[AliExpress] Items leídos del CSV: {items.Count}");
+
+                var aliSvc = new FuncionLambda.Services.AliExpressServices(secret, ctx);
+                var result = await aliSvc.UpdatePricesAndStockAsync(items);
+
+                ctx.Logger.LogLine($"[AliExpress] {result.ToSummary()}");
+                if (result.Errors.Count > 0)
+                    ctx.Logger.LogLine($"[AliExpress] Errores: {string.Join("; ", result.Errors)}");
+            }
+            catch (Exception ex)
+            {
+                ctx.Logger.LogLine($"[AliExpress] ERROR en ProcessAliExpressFeedCatalogAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+        public static async Task ProcessAliExpressExportOrdersAsync(
+            string tenantId, IAmazonS3 s3, string bucket, string key,
+            string env, string project, ILambdaContext ctx)
+        {
+            try
+            {
+                ctx.Logger.LogLine($"[AliExpress] Iniciando EXPORT_ORDERS para {tenantId}");
+
+                var secretManagerService = new SecretManagerService(new Amazon.SecretsManager.AmazonSecretsManagerClient());
+                var secret = await secretManagerService.GetAliExpressSecretAsync(tenantId, env, project, ctx);
+
+                if (secret == null)
+                    throw new InvalidOperationException($"No se encontraron credenciales AliExpress para tenant={tenantId}");
+
+                var jobId     = Guid.NewGuid().ToString();
+                var ddbClient = new AmazonDynamoDBClient(RegionEndpoint.EUWest1);
+                string tableName = Environment.GetEnvironmentVariable("JOBS_TABLE") ?? "catalog-api-dev-jobs";
+
+                await MarkAsNewJobReceived(ddbClient, tableName, tenantId, jobId, bucket, key, ALIEXPRESS_EXPORT_ORDERS);
+                await MarkJobProcessingAsync(ddbClient, tableName, jobId, tenantId, "PROCESSING");
+
+                var aliSvc  = new FuncionLambda.Services.AliExpressServices(secret, ctx);
+                var result  = await aliSvc.ExportOrdersAsync(
+                    tenantId, jobId, DateTime.UtcNow.AddDays(-30), DateTime.UtcNow,
+                    bucket, s3, ddbClient, tableName);
+
+                ctx.Logger.LogLine($"[AliExpress] Exportación completada: {result.TotalOrders} pedidos, {result.TotalLines} líneas");
+            }
+            catch (Exception ex)
+            {
+                ctx.Logger.LogLine($"[AliExpress] ERROR en ProcessAliExpressExportOrdersAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+        public static async Task ProcessDecathlonFeedCatalogAsync(
+            string tenantId, IAmazonS3 s3, string bucket, string key,
+            string env, string project, ILambdaContext ctx)
+        {
+            try
+            {
+                ctx.Logger.LogLine($"[Decathlon] Iniciando FEED_CATALOG para {tenantId}");
+
+                var secretManagerService = new SecretManagerService(new Amazon.SecretsManager.AmazonSecretsManagerClient());
+                var secret = await secretManagerService.GetDecathlonSecretAsync(tenantId, env, project, ctx);
+
+                if (secret == null)
+                    throw new InvalidOperationException($"No se encontraron credenciales Decathlon para tenant={tenantId}");
+
+                var items = await TransformCatalogFromToListItems(s3, bucket, key, ctx);
+                ctx.Logger.LogLine($"[Decathlon] Items leídos del CSV: {items.Count}");
+
+                var svc    = new FuncionLambda.Services.DecathlonServices(secret, ctx);
+                var result = await svc.UpdateCatalogAsync(items);
+
+                ctx.Logger.LogLine($"[Decathlon] {result.ToSummary()}");
+                if (result.Errors.Count > 0)
+                    ctx.Logger.LogLine($"[Decathlon] Errores: {string.Join("; ", result.Errors)}");
+            }
+            catch (Exception ex)
+            {
+                ctx.Logger.LogLine($"[Decathlon] ERROR en ProcessDecathlonFeedCatalogAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+        public static async Task ProcessDecathlonExportOrdersAsync(
+            string tenantId, IAmazonS3 s3, string bucket, string key,
+            string env, string project, ILambdaContext ctx)
+        {
+            try
+            {
+                ctx.Logger.LogLine($"[Decathlon] Iniciando EXPORT_ORDERS para {tenantId}");
+
+                var secretManagerService = new SecretManagerService(new Amazon.SecretsManager.AmazonSecretsManagerClient());
+                var secret = await secretManagerService.GetDecathlonSecretAsync(tenantId, env, project, ctx);
+
+                if (secret == null)
+                    throw new InvalidOperationException($"No se encontraron credenciales Decathlon para tenant={tenantId}");
+
+                var jobId     = Guid.NewGuid().ToString();
+                var ddbClient = new AmazonDynamoDBClient(RegionEndpoint.EUWest1);
+                string tableName = Environment.GetEnvironmentVariable("JOBS_TABLE") ?? "catalog-api-dev-jobs";
+
+                await MarkAsNewJobReceived(ddbClient, tableName, tenantId, jobId, bucket, key, DECATHLON_EXPORT_ORDERS);
+                await MarkJobProcessingAsync(ddbClient, tableName, jobId, tenantId, "PROCESSING");
+
+                var svc    = new FuncionLambda.Services.DecathlonServices(secret, ctx);
+                var result = await svc.ExportOrdersAsync(
+                    tenantId, jobId, DateTime.UtcNow.AddDays(-30), DateTime.UtcNow,
+                    bucket, s3, ddbClient, tableName);
+
+                ctx.Logger.LogLine($"[Decathlon] Exportación completada: {result.TotalOrders} pedidos, {result.TotalLines} líneas");
+            }
+            catch (Exception ex)
+            {
+                ctx.Logger.LogLine($"[Decathlon] ERROR en ProcessDecathlonExportOrdersAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Envía stocks y precios a TODOS los marketplaces configurados para el tenant.
+        /// Si un marketplace falla, continúa con los demás (best-effort).
+        /// </summary>
+        public static async Task ProcessAllFeedCatalogAsync(
+            string tenantId, IAmazonS3 s3, string bucket, string key,
+            string env, string project, ILambdaContext ctx)
+        {
+            ctx.Logger.LogLine($"[ALL] Iniciando ALL_FEED_CATALOG para {tenantId}");
+
+            var tasks = new[]
+            {
+                RunSafe(() => ProcessClientOperation(FEED_CATALOG,               tenantId, s3, bucket, key, env, project, ctx), "Amazon",       ctx),
+                RunSafe(() => ProcessClientOperation(MIRAVIA_FEED_CATALOG,       tenantId, s3, bucket, key, env, project, ctx), "Miravia",       ctx),
+                RunSafe(() => ProcessClientOperation(ALIEXPRESS_FEED_CATALOG,    tenantId, s3, bucket, key, env, project, ctx), "AliExpress",    ctx),
+                RunSafe(() => ProcessClientOperation(PCCOMPONENTES_FEED_CATALOG, tenantId, s3, bucket, key, env, project, ctx), "PcComponentes", ctx),
+                RunSafe(() => ProcessClientOperation(DECATHLON_FEED_CATALOG,     tenantId, s3, bucket, key, env, project, ctx), "Decathlon",     ctx),
+            };
+
+            await Task.WhenAll(tasks);
+            ctx.Logger.LogLine($"[ALL] ALL_FEED_CATALOG completado para {tenantId}");
+        }
+
+        /// <summary>
+        /// Exporta pedidos de TODOS los marketplaces configurados para el tenant.
+        /// </summary>
+        public static async Task ProcessAllExportOrdersAsync(
+            string tenantId, IAmazonS3 s3, string bucket, string key,
+            string env, string project, ILambdaContext ctx)
+        {
+            ctx.Logger.LogLine($"[ALL] Iniciando ALL_EXPORT_ORDERS para {tenantId}");
+
+            var tasks = new[]
+            {
+                RunSafe(() => ProcessClientOperation(EXPORT_ORDERS,               tenantId, s3, bucket, key, env, project, ctx), "Amazon",       ctx),
+                RunSafe(() => ProcessClientOperation(MIRAVIA_EXPORT_ORDERS,       tenantId, s3, bucket, key, env, project, ctx), "Miravia",       ctx),
+                RunSafe(() => ProcessClientOperation(ALIEXPRESS_EXPORT_ORDERS,    tenantId, s3, bucket, key, env, project, ctx), "AliExpress",    ctx),
+                RunSafe(() => ProcessClientOperation(PCCOMPONENTES_EXPORT_ORDERS, tenantId, s3, bucket, key, env, project, ctx), "PcComponentes", ctx),
+                RunSafe(() => ProcessClientOperation(DECATHLON_EXPORT_ORDERS,     tenantId, s3, bucket, key, env, project, ctx), "Decathlon",     ctx),
+            };
+
+            await Task.WhenAll(tasks);
+            ctx.Logger.LogLine($"[ALL] ALL_EXPORT_ORDERS completado para {tenantId}");
+        }
+
+        private static async Task RunSafe(Func<Task> action, string marketplace, ILambdaContext ctx)
+        {
+            try   { await action(); }
+            catch (Exception ex) { ctx.Logger.LogLine($"[ALL] {marketplace} falló (continúa): {ex.Message}"); }
         }
 
         static string ExtractJobId(string body)

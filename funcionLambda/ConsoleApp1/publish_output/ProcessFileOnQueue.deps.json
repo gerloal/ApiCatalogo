@@ -1,0 +1,535 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0/linux-arm64",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {},
+    ".NETCoreApp,Version=v8.0/linux-arm64": {
+      "ProcessFileOnQueue/1.0.0": {
+        "dependencies": {
+          "AWSSDK.CloudWatch": "4.0.8.2",
+          "AWSSDK.DynamoDBv2": "4.0.6.5",
+          "AWSSDK.S3": "4.0.7.7",
+          "AWSSDK.SQS": "4.0.1.8",
+          "AWSSDK.SecretsManager": "4.0.1.6",
+          "AWSSDK.SimpleEmailV2": "4.0.5.6",
+          "AWSXRayRecorder.Core": "2.16.0",
+          "AWSXRayRecorder.Handlers.AwsSdk": "2.14.0",
+          "Amazon.Lambda.APIGatewayEvents": "2.7.1",
+          "Amazon.Lambda.Core": "2.8.0",
+          "Amazon.Lambda.SQSEvents": "2.2.0",
+          "Amazon.Lambda.Serialization.SystemTextJson": "2.4.4",
+          "CSharpAmazonSpAPI": "1.9.11",
+          "Microsoft.Extensions.Configuration": "9.0.9",
+          "FikaAmazonAPI": "1.9.11.0"
+        },
+        "runtime": {
+          "ProcessFileOnQueue.dll": {}
+        }
+      },
+      "Amazon.Lambda.APIGatewayEvents/2.7.1": {
+        "runtime": {
+          "lib/net8.0/Amazon.Lambda.APIGatewayEvents.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.2.0.0"
+          }
+        }
+      },
+      "Amazon.Lambda.Core/2.8.0": {
+        "runtime": {
+          "lib/net8.0/Amazon.Lambda.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Amazon.Lambda.Serialization.SystemTextJson/2.4.4": {
+        "dependencies": {
+          "Amazon.Lambda.Core": "2.8.0"
+        },
+        "runtime": {
+          "lib/net8.0/Amazon.Lambda.Serialization.SystemTextJson.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Amazon.Lambda.SQSEvents/2.2.0": {
+        "runtime": {
+          "lib/net8.0/Amazon.Lambda.SQSEvents.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "AWSSDK.CloudWatch/4.0.8.2": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.3.17",
+          "AWSSDK.Extensions.CborProtocol": "4.0.0.27"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.CloudWatch.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.8.2"
+          }
+        }
+      },
+      "AWSSDK.Core/4.0.3.17": {
+        "runtime": {
+          "lib/net8.0/AWSSDK.Core.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.3.17"
+          }
+        }
+      },
+      "AWSSDK.DynamoDBv2/4.0.6.5": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.3.17"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.DynamoDBv2.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.6.5"
+          }
+        }
+      },
+      "AWSSDK.Extensions.CborProtocol/4.0.0.27": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.3.17",
+          "System.Formats.Cbor": "9.0.5"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.Extensions.CborProtocol.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.27"
+          }
+        }
+      },
+      "AWSSDK.S3/4.0.7.7": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.3.17"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.S3.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.7.7"
+          }
+        }
+      },
+      "AWSSDK.SecretsManager/4.0.1.6": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.3.17"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.SecretsManager.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.1.6"
+          }
+        }
+      },
+      "AWSSDK.SecurityToken/4.0.1.3": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.3.17"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.SecurityToken.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.1.3"
+          }
+        }
+      },
+      "AWSSDK.SimpleEmailV2/4.0.5.6": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.3.17"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.SimpleEmailV2.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.5.6"
+          }
+        }
+      },
+      "AWSSDK.SQS/4.0.1.8": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.3.17"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.SQS.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.1.8"
+          }
+        }
+      },
+      "AWSXRayRecorder.Core/2.16.0": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.3.17",
+          "Amazon.Lambda.Core": "2.8.0",
+          "Amazon.Lambda.SQSEvents": "2.2.0"
+        },
+        "runtime": {
+          "lib/net6.0/AWSXRayRecorder.Core.dll": {
+            "assemblyVersion": "2.16.0.0",
+            "fileVersion": "2.16.0.0"
+          }
+        }
+      },
+      "AWSXRayRecorder.Handlers.AwsSdk/2.14.0": {
+        "dependencies": {
+          "AWSXRayRecorder.Core": "2.16.0"
+        },
+        "runtime": {
+          "lib/net6.0/AWSXRayRecorder.Handlers.AwsSdk.dll": {
+            "assemblyVersion": "2.14.0.0",
+            "fileVersion": "2.14.0.0"
+          }
+        }
+      },
+      "Microsoft.Extensions.Configuration/9.0.9": {
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Abstractions": "9.0.9",
+          "Microsoft.Extensions.Primitives": "9.0.9"
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.925.41916"
+          }
+        }
+      },
+      "Microsoft.Extensions.Configuration.Abstractions/9.0.9": {
+        "dependencies": {
+          "Microsoft.Extensions.Primitives": "9.0.9"
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.Extensions.Configuration.Abstractions.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.925.41916"
+          }
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection.Abstractions/9.0.6": {
+        "runtime": {
+          "lib/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.625.26613"
+          }
+        }
+      },
+      "Microsoft.Extensions.Logging.Abstractions/9.0.6": {
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.6",
+          "System.Diagnostics.DiagnosticSource": "9.0.6"
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.Extensions.Logging.Abstractions.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.625.26613"
+          }
+        }
+      },
+      "Microsoft.Extensions.Primitives/9.0.9": {
+        "runtime": {
+          "lib/net8.0/Microsoft.Extensions.Primitives.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.925.41916"
+          }
+        }
+      },
+      "Newtonsoft.Json/13.0.3": {
+        "runtime": {
+          "lib/net6.0/Newtonsoft.Json.dll": {
+            "assemblyVersion": "13.0.0.0",
+            "fileVersion": "13.0.3.27908"
+          }
+        }
+      },
+      "StandardSocketsHttpHandler/2.2.0.8": {
+        "runtime": {
+          "lib/netstandard2.1/StandardSocketsHttpHandler.dll": {
+            "assemblyVersion": "2.2.0.8",
+            "fileVersion": "2.2.0.8"
+          }
+        }
+      },
+      "System.Diagnostics.DiagnosticSource/9.0.6": {
+        "runtime": {
+          "lib/net8.0/System.Diagnostics.DiagnosticSource.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.625.26613"
+          }
+        }
+      },
+      "System.Formats.Cbor/9.0.5": {
+        "runtime": {
+          "lib/net8.0/System.Formats.Cbor.dll": {
+            "assemblyVersion": "9.0.0.5",
+            "fileVersion": "9.0.525.21509"
+          }
+        }
+      },
+      "System.IO.Pipelines/9.0.6": {
+        "runtime": {
+          "lib/net8.0/System.IO.Pipelines.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.625.26613"
+          }
+        }
+      },
+      "System.Text.Encodings.Web/9.0.6": {
+        "runtime": {
+          "lib/net8.0/System.Text.Encodings.Web.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.625.26613"
+          }
+        }
+      },
+      "System.Text.Json/9.0.6": {
+        "dependencies": {
+          "System.IO.Pipelines": "9.0.6",
+          "System.Text.Encodings.Web": "9.0.6"
+        },
+        "runtime": {
+          "lib/net8.0/System.Text.Json.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.625.26613"
+          }
+        }
+      },
+      "CSharpAmazonSpAPI/1.9.11": {
+        "dependencies": {
+          "AWSSDK.DynamoDBv2": "4.0.6.5",
+          "AWSSDK.S3": "4.0.7.7",
+          "AWSSDK.SQS": "4.0.1.8",
+          "AWSSDK.SecretsManager": "4.0.1.6",
+          "AWSSDK.SecurityToken": "4.0.1.3",
+          "Microsoft.Extensions.Logging.Abstractions": "9.0.6",
+          "Newtonsoft.Json": "13.0.3",
+          "StandardSocketsHttpHandler": "2.2.0.8",
+          "System.Text.Json": "9.0.6"
+        },
+        "runtime": {
+          "FikaAmazonAPI.dll": {
+            "assemblyVersion": "1.9.11.0",
+            "fileVersion": "1.9.11.0"
+          }
+        }
+      },
+      "FikaAmazonAPI/1.9.11.0": {
+        "runtime": {
+          "FikaAmazonAPI.dll": {
+            "assemblyVersion": "1.9.11.0",
+            "fileVersion": "1.9.11.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "ProcessFileOnQueue/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Amazon.Lambda.APIGatewayEvents/2.7.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ORuKOBjquor/clDL5ogeUoKEHt/iRmaC673gFpNzpwF5VkJ7LRvQc4MYnkeIexnXEwdS7yTkM4eSu9wzORi/wg==",
+      "path": "amazon.lambda.apigatewayevents/2.7.1",
+      "hashPath": "amazon.lambda.apigatewayevents.2.7.1.nupkg.sha512"
+    },
+    "Amazon.Lambda.Core/2.8.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-mZnqCrLuNvB9T9/bCIcu/7H8HWd3yi6sEDzRE76D9ym06D+CoEfJ/EG4w7FucclvpSXO7ui/MKpzqhEnR2FAVg==",
+      "path": "amazon.lambda.core/2.8.0",
+      "hashPath": "amazon.lambda.core.2.8.0.nupkg.sha512"
+    },
+    "Amazon.Lambda.Serialization.SystemTextJson/2.4.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-iv/cvqFuZ3v3+NFDyof0IJZvU+4kdpzOe3pWSBwp9HB885I+D32WQxuid9V4GnvRynER9XnWMPaDmImX8qH5cA==",
+      "path": "amazon.lambda.serialization.systemtextjson/2.4.4",
+      "hashPath": "amazon.lambda.serialization.systemtextjson.2.4.4.nupkg.sha512"
+    },
+    "Amazon.Lambda.SQSEvents/2.2.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-RyYLgEa6nh+VJrCfTDKxvTLS1+eLDIIDyHgwDY3TR1WQz1+UeDIcccOJvoDk2nmjkSA0TfWJmZX9Ld0ySf57lA==",
+      "path": "amazon.lambda.sqsevents/2.2.0",
+      "hashPath": "amazon.lambda.sqsevents.2.2.0.nupkg.sha512"
+    },
+    "AWSSDK.CloudWatch/4.0.8.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-sghF8kkhPoQ7MA8rm6H+/zrptkq2kDl/zpr50j77RmimtOfHhcQacrHMA052rHqUS8G7AWFG2OEtw20JzcSFmQ==",
+      "path": "awssdk.cloudwatch/4.0.8.2",
+      "hashPath": "awssdk.cloudwatch.4.0.8.2.nupkg.sha512"
+    },
+    "AWSSDK.Core/4.0.3.17": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Ab24kVquQ8kvuQKNe5MK/SvaXR4uoxPkAlTPALDEImaHcwsBg+UWfRVcNzLEx4dRR2y1mDFFh+zZ9TVMXGY6Jg==",
+      "path": "awssdk.core/4.0.3.17",
+      "hashPath": "awssdk.core.4.0.3.17.nupkg.sha512"
+    },
+    "AWSSDK.DynamoDBv2/4.0.6.5": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-o8acZ8dG8+qwpTpHEV2I6srcjhCz3zh/Daqf3XHDfTaSleLvTh7MmlB+P4bGMza0sPP0WCx+d4kJLEa8ipVNlg==",
+      "path": "awssdk.dynamodbv2/4.0.6.5",
+      "hashPath": "awssdk.dynamodbv2.4.0.6.5.nupkg.sha512"
+    },
+    "AWSSDK.Extensions.CborProtocol/4.0.0.27": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-2C80BDFKdci/wTXzQvuUo0Oekj2NmXiYNJIW/YclTEI2/XmtJaytgbTWaqp/8Hpl2JM8L8WT6omyZdk+mYEV2A==",
+      "path": "awssdk.extensions.cborprotocol/4.0.0.27",
+      "hashPath": "awssdk.extensions.cborprotocol.4.0.0.27.nupkg.sha512"
+    },
+    "AWSSDK.S3/4.0.7.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-weqERmihe8yL2pirRjtbOvCOcRd+W61i28IIso0RoJZNu+ImWjB57fCz+8WHk+0T8e4YgnS0iLYkgpNiNJBAVA==",
+      "path": "awssdk.s3/4.0.7.7",
+      "hashPath": "awssdk.s3.4.0.7.7.nupkg.sha512"
+    },
+    "AWSSDK.SecretsManager/4.0.1.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-1Dr5Q2r9fhLncwBcSV7oXHitU0ZNbVeymrO/fsnhHJu8nfKFnOE8JlDWAtykFrCOpkd7bYvHRHuk3/gIJ1EOZQ==",
+      "path": "awssdk.secretsmanager/4.0.1.6",
+      "hashPath": "awssdk.secretsmanager.4.0.1.6.nupkg.sha512"
+    },
+    "AWSSDK.SecurityToken/4.0.1.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-2AVQLny90IPggz89bGcbfDd71f1MFk+EWQWyr1wAQhLxH8lcJebPcPxC5TRr44tfe2LYcndYQTs/9+tc+7G2/Q==",
+      "path": "awssdk.securitytoken/4.0.1.3",
+      "hashPath": "awssdk.securitytoken.4.0.1.3.nupkg.sha512"
+    },
+    "AWSSDK.SimpleEmailV2/4.0.5.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-IKH9o5mN2Dgh1Xa2MS2kb1xIhqN+nUGqyktuCX36Vuw/2qbgFLetwc3APx+km/wlSDDFiCfeebgQORoLB7tWXA==",
+      "path": "awssdk.simpleemailv2/4.0.5.6",
+      "hashPath": "awssdk.simpleemailv2.4.0.5.6.nupkg.sha512"
+    },
+    "AWSSDK.SQS/4.0.1.8": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-KFClBnsLEfY2o9w41GIz+IfSPil0GdiTMkXfGLJ1iGsFkF9U3iyNdIeDS91ccjgvsJ4JlWE4jwlw4zHy/LV62w==",
+      "path": "awssdk.sqs/4.0.1.8",
+      "hashPath": "awssdk.sqs.4.0.1.8.nupkg.sha512"
+    },
+    "AWSXRayRecorder.Core/2.16.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-I4BMYX4Fs7SiDHtvKoS/TsRUp2flCrfotJOsYRvvn4+gU1wPjD6LEHkIiLNDSwS9Vbh2784dxeWfdAG7oct5MQ==",
+      "path": "awsxrayrecorder.core/2.16.0",
+      "hashPath": "awsxrayrecorder.core.2.16.0.nupkg.sha512"
+    },
+    "AWSXRayRecorder.Handlers.AwsSdk/2.14.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-N4CZLxbyZF6qgwzP6MMFGdu9936sHv5fxTlscWFJa3tf0F1mFjRBUeHxbOlA91Si+S0u3XdMPGUBP3KhkCybqw==",
+      "path": "awsxrayrecorder.handlers.awssdk/2.14.0",
+      "hashPath": "awsxrayrecorder.handlers.awssdk.2.14.0.nupkg.sha512"
+    },
+    "Microsoft.Extensions.Configuration/9.0.9": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-w87wF/90/VI0ZQBhf4rbMEeyEy0vi2WKjFmACsNAKNaorY+ZlVz7ddyXkbADvaWouMKffNmR0yQOGcrvSSvKGg==",
+      "path": "microsoft.extensions.configuration/9.0.9",
+      "hashPath": "microsoft.extensions.configuration.9.0.9.nupkg.sha512"
+    },
+    "Microsoft.Extensions.Configuration.Abstractions/9.0.9": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-p5RKAY9POvs3axwA/AQRuJeM8AHuE8h4qbP1NxQeGm0ep46aXz1oCLAp/oOYxX1GsjStgdhHrN3XXLLXr0+b3w==",
+      "path": "microsoft.extensions.configuration.abstractions/9.0.9",
+      "hashPath": "microsoft.extensions.configuration.abstractions.9.0.9.nupkg.sha512"
+    },
+    "Microsoft.Extensions.DependencyInjection.Abstractions/9.0.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-0Zn6nR/6g+90MxskZyOOMPQvnPnrrGu6bytPwkV+azDcTtCSuQ1+GJUrg8Klmnrjk1i6zMpw2lXijl+tw7Q3kA==",
+      "path": "microsoft.extensions.dependencyinjection.abstractions/9.0.6",
+      "hashPath": "microsoft.extensions.dependencyinjection.abstractions.9.0.6.nupkg.sha512"
+    },
+    "Microsoft.Extensions.Logging.Abstractions/9.0.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-LFnyBNK7WtFmKdnHu3v0HOYQ8BcjYuy0jdC9pgCJ/rbLKoJEG9/dBzSKMEeeWDbDeoWS0TIxOC8a9CM5ufca3A==",
+      "path": "microsoft.extensions.logging.abstractions/9.0.6",
+      "hashPath": "microsoft.extensions.logging.abstractions.9.0.6.nupkg.sha512"
+    },
+    "Microsoft.Extensions.Primitives/9.0.9": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-z4pyMePOrl733ltTowbN565PxBw1oAr8IHmIXNDiDqd22nFpYltX9KhrNC/qBWAG1/Zx5MHX+cOYhWJQYCO/iw==",
+      "path": "microsoft.extensions.primitives/9.0.9",
+      "hashPath": "microsoft.extensions.primitives.9.0.9.nupkg.sha512"
+    },
+    "Newtonsoft.Json/13.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ==",
+      "path": "newtonsoft.json/13.0.3",
+      "hashPath": "newtonsoft.json.13.0.3.nupkg.sha512"
+    },
+    "StandardSocketsHttpHandler/2.2.0.8": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-OBEY+nj57eiHn0cHzEFjBJ3nL1SFzlPGTkEwIyfq5jLsC5x7/XpQbqGExODflAyIc70oU4er/uAlNv4p/ZUT1Q==",
+      "path": "standardsocketshttphandler/2.2.0.8",
+      "hashPath": "standardsocketshttphandler.2.2.0.8.nupkg.sha512"
+    },
+    "System.Diagnostics.DiagnosticSource/9.0.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-nikkwAKqpwWUvV5J8S9fnOPYg8k75Lf9fAI4bd6pyhyqNma0Py9kt+zcqXbe4TjJ4sTPcdYpPg81shYTrXnUZQ==",
+      "path": "system.diagnostics.diagnosticsource/9.0.6",
+      "hashPath": "system.diagnostics.diagnosticsource.9.0.6.nupkg.sha512"
+    },
+    "System.Formats.Cbor/9.0.5": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-f8z0zGhG7Wjd58MuY1blbYA7Gx/rr2Q9x5twpw/PomDhLKGwUcnYYm9kYvv44IvrNEG3gfmPBZaiwTkNZtqkZA==",
+      "path": "system.formats.cbor/9.0.5",
+      "hashPath": "system.formats.cbor.9.0.5.nupkg.sha512"
+    },
+    "System.IO.Pipelines/9.0.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-0nlr0reXrRmkZNKifKqh2DgGhQgfkT7Qa3gQxIn/JI7/y3WDiTz67M+Sq3vFhUqcG8O5zVrpqHvIHeGPGUBsEw==",
+      "path": "system.io.pipelines/9.0.6",
+      "hashPath": "system.io.pipelines.9.0.6.nupkg.sha512"
+    },
+    "System.Text.Encodings.Web/9.0.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-uWRgViw2yJAUyGxrzDLCc6fkzE2dZIoXxs8V6YjCujKsJuP0pnpYSlbm2/7tKd0SjBnMtwfDQhLenk3bXonVOA==",
+      "path": "system.text.encodings.web/9.0.6",
+      "hashPath": "system.text.encodings.web.9.0.6.nupkg.sha512"
+    },
+    "System.Text.Json/9.0.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-h+ZtYTyTnTh5Ju6mHCKb3FPGx4ylJZgm9W7Y2psUnkhQRPMOIxX+TCN0ZgaR/+Yea+93XHWAaMzYTar1/EHIPg==",
+      "path": "system.text.json/9.0.6",
+      "hashPath": "system.text.json.9.0.6.nupkg.sha512"
+    },
+    "CSharpAmazonSpAPI/1.9.11": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "FikaAmazonAPI/1.9.11.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

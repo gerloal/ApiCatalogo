@@ -9,10 +9,15 @@ using System.Threading.Tasks;
 
 namespace FuncionLambda
 {
-    public class MiraviaApiClient
+    /// <summary>
+    /// Cliente HTTP para la AliExpress Open Platform API (IOP).
+    /// Usa la misma firma HMAC-SHA256 que Miravia (ambas son plataformas IOP).
+    /// Endpoint: https://api-sg.aliexpress.com/rest
+    /// </summary>
+    public class AliExpressApiClient
     {
-        private const string ProductionBaseUrl = "https://api.miravia.es/rest";
-        private const string SandboxBaseUrl    = "https://api.miravia.es/rest/mock";
+        private const string ProductionBaseUrl = "https://api-sg.aliexpress.com/rest";
+        private const string SandboxBaseUrl    = "https://api-sg.aliexpress.com/rest/mock";
 
         private readonly HttpClient _http;
         private readonly string _appKey;
@@ -20,16 +25,14 @@ namespace FuncionLambda
         private readonly string _accessToken;
         private readonly string _baseUrl;
 
-        /// <param name="useSandbox">true → usa /rest/mock (entorno de pruebas de Miravia)</param>
-        /// <param name="httpClient">Inyectar para tests; null usa una instancia compartida</param>
-        public MiraviaApiClient(string appKey, string appSecret, string accessToken,
+        public AliExpressApiClient(string appKey, string appSecret, string accessToken,
             bool useSandbox = false, HttpClient? httpClient = null)
         {
-            _appKey = appKey;
-            _appSecret = appSecret;
+            _appKey      = appKey;
+            _appSecret   = appSecret;
             _accessToken = accessToken;
-            _baseUrl = useSandbox ? SandboxBaseUrl : ProductionBaseUrl;
-            _http = httpClient ?? new HttpClient();
+            _baseUrl     = useSandbox ? SandboxBaseUrl : ProductionBaseUrl;
+            _http        = httpClient ?? new HttpClient();
         }
 
         public async Task<T?> GetAsync<T>(string apiPath, Dictionary<string, string> apiParams)
@@ -56,18 +59,18 @@ namespace FuncionLambda
 
             commonParams["sign"] = ComputeSign(apiPath, allParamsForSign);
 
-            var url = $"{_baseUrl}{apiPath}?{BuildQueryString(commonParams)}";
+            var url  = $"{_baseUrl}{apiPath}?{BuildQueryString(commonParams)}";
             var body = new FormUrlEncodedContent(apiParams);
             var response = await _http.PostAsync(url, body);
             var json = await response.Content.ReadAsStringAsync();
             return ParseResponse<T>(json, apiPath);
         }
 
-        public async Task<MiraviaApiResponse?> PostJsonPayloadAsync(string apiPath, object payload)
+        public async Task<AliExpressApiResponse?> PostJsonPayloadAsync(string apiPath, object payload)
         {
             var jsonPayload = JsonSerializer.Serialize(payload);
-            var apiParams = new Dictionary<string, string> { ["payload"] = jsonPayload };
-            return await PostAsync<MiraviaApiResponse>(apiPath, apiParams);
+            var apiParams   = new Dictionary<string, string> { ["payload"] = jsonPayload };
+            return await PostAsync<AliExpressApiResponse>(apiPath, apiParams);
         }
 
         internal string ComputeSign(string apiPath, Dictionary<string, string> allParams)
@@ -103,18 +106,18 @@ namespace FuncionLambda
         {
             try
             {
-                var doc = JsonDocument.Parse(json);
+                var doc  = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
                 var code = root.TryGetProperty("code", out var codeProp) ? codeProp.GetString() : "unknown";
                 if (code != "0")
                 {
                     var msg = root.TryGetProperty("message", out var msgProp) ? msgProp.GetString() : json;
-                    throw new MiraviaApiException(apiPath, code ?? "unknown", msg ?? json);
+                    throw new AliExpressApiException(apiPath, code ?? "unknown", msg ?? json);
                 }
 
-                if (typeof(T) == typeof(MiraviaApiResponse))
-                    return (T)(object)new MiraviaApiResponse { Code = code ?? "0", Raw = json };
+                if (typeof(T) == typeof(AliExpressApiResponse))
+                    return (T)(object)new AliExpressApiResponse { Code = code ?? "0", Raw = json };
 
                 if (root.TryGetProperty("data", out var data))
                     return JsonSerializer.Deserialize<T>(data.GetRawText(),
@@ -122,32 +125,30 @@ namespace FuncionLambda
 
                 return default;
             }
-            catch (MiraviaApiException)
-            {
-                throw;
-            }
+            catch (AliExpressApiException) { throw; }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Error al parsear respuesta de {apiPath}: {ex.Message}. JSON: {json}", ex);
+                throw new InvalidOperationException(
+                    $"Error al parsear respuesta de {apiPath}: {ex.Message}. JSON: {json}", ex);
             }
         }
     }
 
-    public class MiraviaApiResponse
+    public class AliExpressApiResponse
     {
         public string Code { get; set; } = string.Empty;
-        public string Raw { get; set; } = string.Empty;
+        public string Raw  { get; set; } = string.Empty;
     }
 
-    public class MiraviaApiException : Exception
+    public class AliExpressApiException : Exception
     {
-        public string ApiPath { get; }
+        public string ApiPath   { get; }
         public string ErrorCode { get; }
 
-        public MiraviaApiException(string apiPath, string errorCode, string message)
-            : base($"Miravia API error en {apiPath} [code={errorCode}]: {message}")
+        public AliExpressApiException(string apiPath, string errorCode, string message)
+            : base($"AliExpress API error en {apiPath} [code={errorCode}]: {message}")
         {
-            ApiPath = apiPath;
+            ApiPath   = apiPath;
             ErrorCode = errorCode;
         }
     }
